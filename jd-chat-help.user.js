@@ -1,15 +1,15 @@
 // ==UserScript==
 // @name       just-dice.com chat helper
 // @namespace  http://use.i.E.your.homepage/
-// @version    0.15
+// @version    0.16
 // @description  script to improve just-dice.com's chat.  Adds colored names to easily track users, highlights, nicknames, more
-// @require    	http://code.jquery.com/jquery-latest.min.js
+// @require     http://code.jquery.com/jquery-latest.min.js
 // @match      https://just-dice.com/*
-// @grant		unsafeWindow
-// @grant		GM_setValue
-// @grant		GM_getValue
-// @grant      	GM_listValues
-// @grant      	GM_deleteValue
+// @grant               unsafeWindow
+// @grant               GM_setValue
+// @grant               GM_getValue
+// @grant       GM_listValues
+// @grant       GM_deleteValue
 // @copyright  2014+, momphis.justdice@gmail.com
 // ==/UserScript==
 // Smoked lots of weed making this, so everything is all over the place.  Apologies to those who read on.
@@ -30,40 +30,40 @@ var defaultGroups = ({ 0:({'color':'#000','name':'default','background':'#FFFFFF
                  2:({'color':'green','name':'group2','background':'#FFFFFF'}) });
 
 if ( DEBUG == true ) {
-	console.log('Dump of saved values');
-	$.each( GM_listValues(), function ( key, value ) {
-    	console.log( value+"="+GM_getValue( value ) );
-	});
+        console.log('Dump of saved values');
+        $.each( GM_listValues(), function ( key, value ) {
+        console.log( value+"="+GM_getValue( value ) );
+        });
     console.log('End dump');
 }
 
 
 var watchList = loadWatchList();
 if ( DEBUG == true ) {
-	console.log('watchlist');
-	console.log( watchList );
+        console.log('watchlist');
+        console.log( watchList );
 }
 //resetWatchList();
 
 var watchGroups = loadGroups();
 if ( DEBUG == true ) {
-	console.log('watchgroups');
-	console.log( watchGroups );
+        console.log('watchgroups');
+        console.log( watchGroups );
 }
 
 var settings = loadSettings();
 if ( DEBUG == true ) {
-	console.log('settings');
-	console.log( settings );
+        console.log('settings');
+        console.log( settings );
 }
 
 // turn off bet controls and setup address button
 function toggleBetControls () {
     
-	for ( var x = 2; x < 6; x++ ) { // hide all the bet releated button containers
-    	var wrap = $( ".wrapper").children()[x];
+        for ( var x = 2; x < 6; x++ ) { // hide all the bet releated button containers
+        var wrap = $( ".wrapper").children()[x];
         $( wrap ).toggle();
-	}
+        }
     if ( $(".chatModeDiv").html() ) { // we're already hidden, let's put everything back
         $( '#a_withdraw' ).removeClass( 'chatModeButton' );
         $( '#a_deposit' ).removeClass( 'chatModeButton' );
@@ -72,27 +72,27 @@ function toggleBetControls () {
         $( '#a_withdraw' ).before( $( '#a_deposit' ) );          
         
         $( '.bal_text' ).after( $( '#pct_balance' ) );
-    	$( ".chatstat>table").css({'float':'none'});
+        $( ".chatstat>table").css({'float':'none'});
           
         // like we were never here
         $( '.chatModeDiv' ).remove();
     } else {     
         // setup deposit, withdraw buttons 
-    	$( '#a_deposit').addClass( 'chatModeButton' );
-    	$( '#a_withdraw').addClass( 'chatModeButton' );
+        $( '#a_deposit').addClass( 'chatModeButton' );
+        $( '#a_withdraw').addClass( 'chatModeButton' );
         
         // setup new div and move above buttons
-    	var div = buildTag( 'div', ({'html':$( '#a_deposit' ), 'css':({'float':'right' }),'addClass':'chatModeDiv' }) );
-    	$( div ).append( $( '#a_withdraw' ) );
-    	$( div ).append( "<div style=\"clear:both\"></div>" );
+        var div = buildTag( 'div', ({'html':$( '#a_deposit' ), 'css':({'float':'right' }),'addClass':'chatModeDiv' }) );
+        $( div ).append( $( '#a_withdraw' ) );
+        $( div ).append( "<div style=\"clear:both\"></div>" );
 
         // place holder for balance
         var d2 = buildTag( 'div', ({ 'addClass':'big', 'html':$('#pct_balance' ) }) );
-    	$( div ).append( d2 ) ;
+        $( div ).append( d2 ) ;
         
-    	// put new div after the chatstats
-    	$( ".chatstat>table").after( div );
-    	$( ".chatstat>table").css({'float':'left'});
+        // put new div after the chatstats
+        $( ".chatstat>table").after( div );
+        $( ".chatstat>table").css({'float':'left'});
     }
 }
 
@@ -104,17 +104,17 @@ $( button ).click( function ( e ) {
     var input = $(".chatinput");
     
 
-	address = getPasteAddress();
+        address = getPasteAddress();
     if ( !settings['temp']) {
         if ( !input.val() || input.val() == address ) {
             if ( !input.val() )
-           		input.val( address );
+                        input.val( address );
             else
                 input.val( "" );
         }
         else {
-       		settings['temp'] = input.val();
-       		input.val( input.val()+" "+address+" " );
+                settings['temp'] = input.val();
+                input.val( input.val()+" "+address+" " );
         }
     } else {
        input.val( settings['temp'] );
@@ -135,12 +135,12 @@ function getPasteAddress () {
 }
 
 function savePasteAddress ( str ) {
-	var address = GM_setValue( 'address', str );
+        var address = GM_setValue( 'address', str );
 }
 
 // basic popup panel
 function Panel () {
-	this.titleStr = "";
+        this.titleStr = "";
     this.cssArr = ({ });
     this.classStr = "";
     this.anchor;
@@ -154,7 +154,7 @@ function Panel () {
     }
     
     this.css = function ( arr ) {
-    	this.cssArr = arr;   
+        this.cssArr = arr;   
     }
     
     this.build = function ( rows ) {
@@ -167,10 +167,10 @@ function Panel () {
         $( div ).css( this.cssArr );
         
         if ( this.titleStr.length ) {
-        	var titleOb = document.createElement( 'div' );
-        	$( titleOb ).append( this.titleStr );
+                var titleOb = document.createElement( 'div' );
+                $( titleOb ).append( this.titleStr );
             $( titleOb ).css( ({ 'background':'#b0b0b0' }) );
-        	$( div ).append( titleOb );
+                $( div ).append( titleOb );
         }
         
         if ( rows && rows.length ) {
@@ -220,8 +220,8 @@ function idLink ( id, name ) {
         console.log('clicking');
         e.stopPropagation();
     });
-	
-	if ( name )
+        
+        if ( name )
         name = dumpUser( id )['name'];
     if ( name ) {
         var span = buildTag( 'span',({'html':"["}) );
@@ -238,7 +238,7 @@ function updateNotifications () {
 
     if ( Object.keys(unreadNotifications).length ) {
         
-    	$('.unreadNotifications>a').html( Object.keys(unreadNotifications).length );
+        $('.unreadNotifications>a').html( Object.keys(unreadNotifications).length );
         $('.unreadNotifications>a').css({'color':'red'});
         $('.unreadNotifications').show();
     }
@@ -315,8 +315,8 @@ function addGlobalStyle(newcss) {
 function dumpAllSaved () {
     var str = "";
     $.each( GM_listValues(), function ( key, value ) {
-    	str += value+"="+GM_getValue( value )+"<br>";
-	});
+        str += value+"="+GM_getValue( value )+"<br>";
+        });
     return str;
 }
 
@@ -335,10 +335,10 @@ function importWatchListFromString ( str ) {
 
     if ( !str.length ) {
         addInfo( 'Error importing watchList: nothing to import', 'error' );
-		return;
+                return;
     }
     try {
-    	str = JSON.parse( str );   
+        str = JSON.parse( str );   
     } catch ( err ) {
         addInfo( 'Error importing watchList: '+err, 'error');
         return;
@@ -346,11 +346,11 @@ function importWatchListFromString ( str ) {
 
     if ( str['watchList'] ) {
         watchList = str['watchList'];
-       	saveWatchList();
+        saveWatchList();
     }
     if ( str['watchGroups'] ) {
         watchGroups = str['watchGroups'];
-    	saveGroups();
+        saveGroups();
     }
     console.log( 'imported watchlist' );
     readChatLog();
@@ -358,19 +358,19 @@ function importWatchListFromString ( str ) {
 }
 
 function resetAll () {
-	$.each( GM_listValues(), function ( key, value ) {
+        $.each( GM_listValues(), function ( key, value ) {
         console.log( 'deleting '+value );
-    	GM_deleteValue( value );
-	});
-	watchList = loadWatchList();
-	watchGroups = loadGroups();    
+        GM_deleteValue( value );
+        });
+        watchList = loadWatchList();
+        watchGroups = loadGroups();    
     readChatLog();
 }
 
 function resetWatchList () {
     watchList = ({ });
     console.log( 'Watchlist reset' );
-	saveWatchList();
+        saveWatchList();
 }
 
 // basic settings for things like paste address/show msgs etc
@@ -459,7 +459,7 @@ function loadWatchList ( ) {
     watchList = GM_getValue( 'watchList' );
     
     if ( watchList && watchList.length )
-	   watchList = JSON.parse( watchList );
+           watchList = JSON.parse( watchList );
     else
         watchList = ({ });
     return watchList;
@@ -467,8 +467,8 @@ function loadWatchList ( ) {
 
 
 function getGroupForUser ( userid ) {
-    if ( !watchList[userid] )
-        return false;
+    if ( !watchList[userid] || !watchList[userid]['group'] )
+        return defaultGroups[0];
     return watchList[ userid ][ 'group' ];
 }
 
@@ -487,10 +487,10 @@ function getUsersForGroup ( group ) {
     $.each( watchList, function( id, data ) {
 
         if ( data['group'] && data['group'] == group ) {
-                    		console.log(id);
-        		console.log(data['group']);
+                                console.log(id);
+                        console.log(data['group']);
                         console.log(group);
-        	usersArr.push( id );
+                usersArr.push( id );
         }
         });
     
@@ -505,10 +505,12 @@ function getGroup (id) {
 }
 
                               
-function getUserDetails ( userid, type ) {
+function getWatchListUser ( userid, type ) {
    var types = [ ];
-   var tmp;
+    var tmp = ({ });
    
+   if ( !watchList[userid] )
+       return false;
    if ( type ) {
       switch ( typeof type ) {
          case 'string'  :  types = [ type ];
@@ -519,28 +521,32 @@ function getUserDetails ( userid, type ) {
       }
       for ( var x = 0; x < types.length; x++ )
          tmp[ types[x] ] = watchList[userid][types[x]];
+
    } else
    tmp = watchList[userid]; 
    
    return tmp;
 }
 
-function saveUserDetails ( userid, data ) {
-    console.log(userid);
-    console.log(data);
+function saveWatchListUser ( userid, data ) {
+
     if ( !watchList[userid] )
         watchList[userid] = data;
     else {
         $.each( data, function ( key, value ) {
            var tmp = watchList[userid][key];
            
-           if ( tmp && ( typeof tmp == 'Array' || typeof tmp == 'Object' ) ) 
-              watchList[userid][key].push( value );
+            if ( tmp &&  typeof value == 'array' ) 
+              tmp.push( value );
            else
-              watchList[userid][key] = value;
+           if ( tmp && typeof value == 'object' ) 
+                      jQuery.extend(tmp, value);               
+           else
+              tmp = value;
+
+           watchList[userid][key] = tmp;
         });
-    	watchList[userid].push(data);
-        console.log(watchList[userid]);
+
     }
     saveWatchList();
 }
@@ -563,19 +569,20 @@ function dumpUser ( userid ) {
     if ( watch )
         return watch;
     watch = membersList[userid]
-    	return watch;
+        return watch;
     return ({ });
 }
 
 function getGroupClassForUser ( userid ) {
     var classStr = "watchList_";
     var group;
-    
+   
     if ( !watchList[userid] )
         group = getGroup( 0 );
     else
         group = getGroup( getGroupForUser( userid ) );
-
+        if ( !group )
+        group = defaultGroups[0];
     
     return classStr+group['name'];
 }
@@ -591,7 +598,7 @@ function getGroupClass ( group ) {
 function getColorsForUser ( userid ) {
     var defaultColors = getGroupColors( 0 );
     
-	if ( !watchList[userid] )
+        if ( !watchList[userid] )
         return defaultColors;
     var group = getGroupForUser( userid );
     
@@ -624,7 +631,7 @@ function saveGroups () {
 }
 
 function loadGroups () {
-	var cssStr = "";
+        var cssStr = "";
     
     var groups = GM_getValue( 'watchGroups' );
     console.log('loading groups');
@@ -711,7 +718,7 @@ function settingsMenuObj () {
     this.unsavedGroups;
     
     this.setup = function () {
-    	this.unsavedGroups = watchGroups;    
+        this.unsavedGroups = watchGroups;    
     }
     
    
@@ -736,12 +743,12 @@ function settingsMenuObj () {
         }
         saveGroups();
         addInfo("Saved Groups",'info');
-		console.log(watchGroups);
+                console.log(watchGroups);
     }
     
     this.buildGroupLine = function ( id, values, showInput ) {
         if ( !values )
-			values = getGroup( id );
+                        values = getGroup( id );
         // group id - can't be changed
         var a = document.createElement( 'a' );
 
@@ -751,14 +758,14 @@ function settingsMenuObj () {
         // show the group details popup if you click on id
         $( a ).click( function ( e ) {
             var panel = new Panel();
-         	var rows = [ ];
+                var rows = [ ];
             var gUsers = getUsersForGroup( $( this ).attr( 'id' ) );
-			var group = watchGroups[ $( this ).attr( 'id' ) ];
+                        var group = watchGroups[ $( this ).attr( 'id' ) ];
             
             $.each( group, function ( key, value ) {
                 var li = buildTag( 'li', ({ 'html' : key+" = "+value }) );
                 if ( key == 'color' )
-                	$( li ).addClass( key );
+                        $( li ).addClass( key );
                 rows[ rows.length ] = li;
             });
             rows.push( buildTag( 'li', ({ 'html': '<h3>Users in Group</h3>' }) ) );
@@ -767,11 +774,11 @@ function settingsMenuObj () {
                     var li = buildTag( 'li', ({ 'html' : idLink(gUsers[x],true) }) );
 
                     rows[rows.length] = li;
-            	}
+                }
             }
             panel.setTitle( 'Group Details ' );
-    		panel.addClass( 'watchListPanel groupDetailsPanel' );
-    		panel.build( rows );
+                panel.addClass( 'watchListPanel groupDetailsPanel' );
+                panel.build( rows );
             
             e.stopPropagation();
  
@@ -779,17 +786,17 @@ function settingsMenuObj () {
         var li = buildli( a );
         
         if ( !showInput ) {
-        	// group name
-        	a = buildTag( 'a', ({'html':values['name'],'addClass':"watchMenuLink editGroupName "+getGroupClass( id ) }) );
-        	$( a ).attr({ 'href':'#editGroupName','id':id });
-        	// on click, hide this, show the next element ( the input )
-        	$( a ).click( function ( e ) {
-            	$( this ).hide();
-            	$( $( this ).next() ).show('slow');
-        	});
+                // group name
+                a = buildTag( 'a', ({'html':values['name'],'addClass':"watchMenuLink editGroupName "+getGroupClass( id ) }) );
+                $( a ).attr({ 'href':'#editGroupName','id':id });
+                // on click, hide this, show the next element ( the input )
+                $( a ).click( function ( e ) {
+                $( this ).hide();
+                $( $( this ).next() ).show('slow');
+                });
             $( li ).append( a );
         }
-   		// group name input
+                // group name input
         var input = buildTag( 'input', ({ 'addClass':'editGroupNameInput editGroupNameInput_'+id+" "+getGroupClass( id ) }) );
 
         $( input ).attr({ 'type':'text','id': id });
@@ -805,21 +812,21 @@ function settingsMenuObj () {
             settingsMenu.unsavedGroups[ $(this).attr('id') ]['name'] = $( this ).val();   
         });
         if ( !showInput )
-        	$( input ).hide();
+                $( input ).hide();
         
         $( li ).append( input );
         
         if ( !showInput ) {
-        	// group color 
-        	a = buildTag( 'a', ({'html':values['color'],'addClass':"watchMenuLink right editGroupColor_"+id+" "+getGroupClass( id ) }) );
+                // group color 
+                a = buildTag( 'a', ({'html':values['color'],'addClass':"watchMenuLink right editGroupColor_"+id+" "+getGroupClass( id ) }) );
 
-	        $( a ).attr({ 'href':'#editGroupColor' });
-	
-    	    // on click, hide this, show the next element ( the input )
-        	$( a ).click( function ( e ) {
-            	$( this ).hide();
-            	$( $( this ).next() ).show('slow');
-        	});
+                $( a ).attr({ 'href':'#editGroupColor' });
+        
+            // on click, hide this, show the next element ( the input )
+                $( a ).click( function ( e ) {
+                $( this ).hide();
+                $( $( this ).next() ).show('slow');
+                });
             $( li ).append( a );
         }
         
@@ -837,7 +844,7 @@ function settingsMenuObj () {
             settingsMenu.unsavedGroups[ $(this).attr('id') ]['color'] = $( this ).val();     
         });
         if ( !showInput )
-        	$( input ).hide();
+                $( input ).hide();
         
 
         $( li ).append( input );
@@ -847,11 +854,11 @@ function settingsMenuObj () {
 }
 
 function rebuildWatchListSettings ( infoMsg, limits ) {
-	var div = $( '.watchListSettings' );
+        var div = $( '.watchListSettings' );
     $( div ).html( '<ul><li><h2>Settings</h2></li></ul>' );
     var ul = buildTag( 'ul', ({ 'addClass':'watchListGroups','html':'<li><h3>Groups</h3></li>' }) );
 
-	var li, a, showMore = false;
+        var li, a, showMore = false;
     var defaultLimits = ({'groups':5,'users':5})
     if ( !limits )
         limits = defaultLimits;
@@ -865,7 +872,7 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
 
         settingsMenu.addNewGroup();
 
-		e.stopPropagation();
+                e.stopPropagation();
     })
     var li = buildTag( 'li', ({'html': button  }) );
     
@@ -875,7 +882,7 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
         settingsMenu.save('groups');
         //watchGroups = settingsMenu.unsavedGroups;
 
-      	e.stopPropagation();
+        e.stopPropagation();
     });
     
     $( li ).append( button );
@@ -894,7 +901,7 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     });
 
     var li = buildli( );
-	if ( showMore ) {
+        if ( showMore ) {
 
         var a = document.createElement( 'a' );
         $( a ).addClass( "watchMenuLink" );
@@ -934,33 +941,33 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     
     $.each( userList, function( userid, value ) {
         if ( value['name'] ) {
-        	var a;
+                var a;
 
-        	// userid - can't be changed
-        	a = idLink( userid, false );
-        	$( a ).css({'float':'left', 'width':'60px'});
-        	$( a ).attr({ 'href':'#showUsersDetails','id':userid });
+                // userid - can't be changed
+                a = idLink( userid, false );
+                $( a ).css({'float':'left', 'width':'60px'});
+                $( a ).attr({ 'href':'#showUsersDetails','id':userid });
             $( a ).click( function ( e ) { showUserDetails(userid); });
             $( a ).addClass( getGroupClassForUser( userid ) );
-       		var li = buildli( ({'html':a }) );
+                var li = buildli( ({'html':a }) );
         
-        	a = document.createElement( 'a' );
-        	$( a ).html( value['name'].trunc(12) );
-        	$( a ).addClass( "watchMenuLink "+getGroupClassForUser( userid ) );
-        	$( a ).attr({ 'href':'#editGroupName','id':userid });
+                a = document.createElement( 'a' );
+                $( a ).html( value['name'].trunc(12) );
+                $( a ).addClass( "watchMenuLink "+getGroupClassForUser( userid ) );
+                $( a ).attr({ 'href':'#editGroupName','id':userid });
 
         
-        	$( li ).append( a );
+                $( li ).append( a );
         
-        	$( li ).append( "." );
-        	a = document.createElement( 'a' );
-        	$( a ).html( getGroupForUser( userid ) );
-        	$( a ).addClass( "watchMenuLink "+getGroupClassForUser( userid ) );
-        	$( a ).css({ 'float':'right' });
-        	$( a ).attr({ 'href':'#editGroupColor', 'id':userid });
+                $( li ).append( "." );
+                a = document.createElement( 'a' );
+                $( a ).html( getGroupForUser( userid ) );
+                $( a ).addClass( "watchMenuLink "+getGroupClassForUser( userid ) );
+                $( a ).css({ 'float':'right' });
+                $( a ).attr({ 'href':'#editGroupColor', 'id':userid });
 
-        	$( li ).append( a );
-        	$( ul ).append( li );
+                $( li ).append( a );
+                $( ul ).append( li );
         }
     });
     
@@ -999,9 +1006,9 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     var button = document.createElement( 'button' );
     $( button ).text( msgSetting ? 'Turn logging off' : 'Turn logging on' );
     if ( msgSetting )
-    	$( button ).css({'background':'green'});
+        $( button ).css({'background':'green'});
     $( button ).click( function ( e ) {
-    	if ( toggleSetting('msgs')==true ) {
+        if ( toggleSetting('msgs')==true ) {
           
             $( this ).text( 'Turn logging off' );
             addInfo( 'Logged turned on','success' );
@@ -1024,17 +1031,17 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
        savePasteAddress( $( this ).val() ); 
     });
     var li = buildli( ({'html':input }) );
-	$( ul ).append( li );
+        $( ul ).append( li );
 
     // debug button
     var button = document.createElement( 'button' );
     $( button ).text( 'Debug' );
     if ( DEBUG )
-    	$( button ).css({'background':'green'});
+        $( button ).css({'background':'green'});
     $( button ).click( function ( e ) {
-    	if ( GM_getValue('debug') ) {
-        	GM_setValue('debug',false);
-         	DEBUG = false;
+        if ( GM_getValue('debug') ) {
+                GM_setValue('debug',false);
+                DEBUG = false;
             addInfo( 'Debug mode off','warning' );
             $( this ).css({'background':'#aaa'});
         } else {
@@ -1047,11 +1054,11 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     var li = buildli( button );
     $( ul ).append( li );
 
-	// reset button    
+        // reset button    
     button = document.createElement( 'button' );
     $( button ).text( 'Reset All' );
     $( button ).click( function ( e ) {
-    	resetAll();
+        resetAll();
         addInfo( 'All saved values reset. Hope you made a backup','warning' );
         e.stopPropagation();
     });
@@ -1062,12 +1069,12 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     var button = document.createElement( 'button' );
     $( button ).html( 'Export watchlist' );
     $( button ).click( function ( e ) { 
-    	var panel = new Panel();
+        var panel = new Panel();
         var li = document.createElement( 'li' );
         //$( li ).append( "<textarea class=watchListDump>"+dumpWatchListToString()+"</textarea>" );
-		$( li ).append( "<textarea class=watchListDump>"+dumpAllSaved()+"</textarea>" );        
+                $( li ).append( "<textarea class=watchListDump>"+dumpAllSaved()+"</textarea>" );        
         panel.setTitle( 'Export watchlist' );
-		panel.addClass('watchListPanel');
+                panel.addClass('watchListPanel');
         panel.build( [ li ]);
         e.stopPropagation();
     });
@@ -1078,7 +1085,7 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     var button = document.createElement( 'button' );
     $( button ).html( 'Import watchlist' );
     $( button ).click( function ( e ) { 
-    	var panel = new Panel();
+        var panel = new Panel();
         var rows = [ ];
 
         var li = buildli( ({'html':"<textarea class=watchListDump></textarea>" }) );
@@ -1094,13 +1101,13 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
         $( button ).click( function ( e ) {
             var str = $('.watchListDump').val();
             importWatchListFromString( str );
-        	e.stopPropagation();
+                e.stopPropagation();
         });
-    	var li = buildli( ({'html':button }) );
+        var li = buildli( ({'html':button }) );
         rows.push(li);
 
         panel.setTitle( 'Import watchlist' );
-		panel.addClass('watchListPanel');
+                panel.addClass('watchListPanel');
         panel.build( rows );   
         e.stopPropagation();
     });
@@ -1111,7 +1118,7 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
 
 
 function showUserDetails ( id ) {
-	var rows = [ ];
+        var rows = [ ];
     var watch = dumpUser( id );
     console.log('dumpuser '+id);
     console.log(watch);
@@ -1121,19 +1128,19 @@ function showUserDetails ( id ) {
     var toSet = ({ "Name":name,"id":id });
     $.each( toSet, function( key, value ) {
         var li = buildli( "<b>"+key+"</b>: "+value );
-       	rows.push( li );    	 
+        rows.push( li );         
     });
     
     // get rid of this once we're clear on what we want to show here
     $.each( watch, function( key, value ) {
         if ( key != 'msgs' && key != 'name' ) {
-        	var li = buildli( key+"="+JSON.stringify(value) );
-        	rows.push( li );
+                var li = buildli( key+"="+JSON.stringify(value) );
+                rows.push( li );
         }
     });
 
-	var msgs = getUser(id)['msgs'];
-
+    var msgs = getUser(id)['msgs'];
+    var smsgs = getWatchListUser( id, 'msgs' );
     if ( msgs ) {
         var idstr = "("+id+") &lt;"+name+"&gt;";
         var li = buildli( 'Messages this session: ' );
@@ -1145,9 +1152,9 @@ function showUserDetails ( id ) {
             console.log(key);
             var time = getTime(key);
             key = time.format('hh:mm:ss');
-	    var li = buildli( key+" "+idstr+" "+value );
-	    $( msglist ).append( li );
-    	});
+            var li = buildli( key+" "+idstr+" "+value );
+            $( msglist ).append( li );
+        });
         rows.push( buildli( msglist ) );
     }
     /*
@@ -1156,12 +1163,12 @@ function showUserDetails ( id ) {
     if ( msgs ) {
         $( div ).append( "msgs this session<br>" );
         $.each( msgs, function( key, value ) {
-        	$( div ).append( key+"="+value+"<br>" );
-    	});
+                $( div ).append( key+"="+value+"<br>" );
+        });
     }*/
     
     var panel = new Panel();
-   	var title = "("+id+") &lt;"+name+">&gt;";
+        var title = "("+id+") &lt;"+name+">&gt;";
     
     if ( watchList[id] )
         title += "on watchlist";
@@ -1181,18 +1188,18 @@ function handleUserPopup ( type, id, pos ) {
     var name = getUser(id)['name'];
     type = type.replace( "#", "" );
     switch ( type ) {
-        case "saveWatchList"	 	:	list = ({ 'header' : 'Pick a group', 'li' : ({ 0 : 'default', 1:'group1',2:'group2' }) });
-            							break;
-        case "showWatchListDetails"	:   showUserDetails(id);
+        case "saveWatchList"            :       list = ({ 'header' : 'Pick a group', 'li' : ({ 0 : 'default', 1:'group1',2:'group2' }) });
+                                                                break;
+        case "showWatchListDetails"     :   showUserDetails(id);
 
-            							return;
-            							break;
-        case "delWatchList"			:	deleteUserDetails( id );
-            							addInfo( "Deleted "+id+" from watchlist", "warning" );
-            							readChatLog();
-            							return;
-            							break;
-        default				:	break;
+                                                                return;
+                                                                break;
+        case "delWatchList"                     :       deleteUserDetails( id );
+                                                                addInfo( "Deleted "+id+" from watchlist", "warning" );
+                                                                readChatLog();
+                                                                return;
+                                                                break;
+        default                         :       break;
     }
     
     if ( !list ) {
@@ -1202,7 +1209,7 @@ function handleUserPopup ( type, id, pos ) {
 
     for ( var x = 0; x < getGroupAmount(); x++ ) {
         var  userColor;
-		var group = getGroup( x );
+                var group = getGroup( x );
         var a = document.createElement( 'a' );
         
         $( a ).attr({ 'href': "#"+x });
@@ -1211,10 +1218,10 @@ function handleUserPopup ( type, id, pos ) {
 
         userColor = getGroupForUser( id );
         if ( userColor && userColor == x ) {
-        	$( a ).addClass( 'selected' );
+                $( a ).addClass( 'selected' );
 
         }
-     	$( a ).html( group['name'] );
+        $( a ).html( group['name'] );
                     
         $( a ).click( function ( e ) {
             var val = $( this ).attr('href').replace("#","");
@@ -1222,10 +1229,10 @@ function handleUserPopup ( type, id, pos ) {
             console.log( "Adding membersList "+id+"="+val );
             console.log(membersList);
             membersList[id]['group'] = val;
-            saveUserDetails(id,membersList[id]);
+            saveWatchListUser(id,membersList[id]);
             
             readChatLog(); // to update colors;
-        		e.stopPropagation();
+                        e.stopPropagation();
         });
 
         var li = buildli( a );
@@ -1245,15 +1252,15 @@ function handleUserPopup ( type, id, pos ) {
 //create popup menu for the clicked id
 // anchor is the object we want to popup next to
 function buildUserPopup ( anchor, id ) {
-	var name, rows = [ ];
+        var name, rows = [ ];
     
     // uh oh.  we should have done
     if ( !membersList[id] ) {
         if ( watchList[id] )
             name = watchList[id]['name'];
         else {
-        	console.log("can't find user "+id);
-        	return;
+                console.log("can't find user "+id);
+                return;
         }
     } else
     name = membersList[id]['name']
@@ -1269,15 +1276,15 @@ function buildUserPopup ( anchor, id ) {
         if ( ( ( value != 'saveWatchList' && watchList[id] ) || ( !watchList[id] &&  value != "delWatchList"  ) ) ) { 
             var li = buildli( ({"html": "<a href=\"#"+value+"\" class=\"watchMenuLink\">"+key+"</a>",
                                 "css" : "padding-bottom:3px" }) );
-        	
+                
      
-        	// if click, send to user popup handler
-        	$( li ).click( function ( e ) {
-            	var child = $( this ).children()[0];    		 			
-            	handleUserPopup( $( child ).attr('href'), id, $( anchor ).position() );
-        		e.stopPropagation();
-    		});
-        	rows.push( li );
+                // if click, send to user popup handler
+                $( li ).click( function ( e ) {
+                var child = $( this ).children()[0];                                            
+                handleUserPopup( $( child ).attr('href'), id, $( anchor ).position() );
+                        e.stopPropagation();
+                });
+                rows.push( li );
         }
     });
     
@@ -1296,7 +1303,7 @@ function buildUserPopup ( anchor, id ) {
 // Reads and replaces this chat line with the userscript version
 function replaceChatLine ( lineObj ) {
     var line = $( lineObj ).html();
-	var checked = false;
+        var checked = false;
     // match 11:11:11 (1111) <abc> hello world?
     var matchStr = /^([0-9\:]+)+\s\((.*?)\)\s&lt;(.*?)&gt;\s(.*)$/; 
 
@@ -1314,31 +1321,31 @@ function replaceChatLine ( lineObj ) {
     // unread line
     if ( !data ) {
         
-    	var result = line.match( matchStr );
+        var result = line.match( matchStr );
 
 
-    	data = ({ });
+        data = ({ });
     
         // does it match?  system messages, big bet ones don't.
         // if not, we don't want to touch it
         if ( !result ) 
-        	return;
+                return;
     
-    	// 1 = timestamp, 2 = id, 3 = username, 4 = chat line     
+        // 1 = timestamp, 2 = id, 3 = username, 4 = chat line     
         data['id'] = result[2];
-    	data['name'] = result[3];
-    	data['lastseen'] = result[1];
-    	data['msg'] = result[4];
+        data['name'] = result[3];
+        data['lastseen'] = result[1];
+        data['msg'] = result[4];
     }
-	var name = data['name'], id = data['id'], msg = data['msg'], timestamp = data['lastseen'];
-   	var time = getTime();
-	time = jdTime(timestamp);
+        var name = data['name'], id = data['id'], msg = data['msg'], timestamp = data['lastseen'];
+        var time = getTime();
+        time = jdTime(timestamp);
     //time = new Date( time.get
 
-	var a = document.createElement( 'a' );
+        var a = document.createElement( 'a' );
 
 
-	//users[ id ] = data;   
+        //users[ id ] = data;   
 
     //var watched = false;
        
@@ -1359,7 +1366,7 @@ function replaceChatLine ( lineObj ) {
     } 
 
     // make userid clickable
-	var a = idLink( id, false );
+        var a = idLink( id, false );
     
     // time of first message in log
     if ( !startTime )
@@ -1378,7 +1385,7 @@ function replaceChatLine ( lineObj ) {
         var startName = membersList[id]['name'];
         if ( startName != name ) {
             var names = membersList[id]['names']
-			if ( !names )
+                        if ( !names )
                 names = ({ });
             names[ name ] = time;
             
@@ -1389,13 +1396,15 @@ function replaceChatLine ( lineObj ) {
     }
 
     // check for nicknames. must have 3/4 functions for this.  Sort it out
-    var dUser = getUserDetails( id, ['name','msgs'] );
-    if ( dUser && dUser['name'] != name )
+    var dUser = getWatchListUser( id, ['name','msgs'] );
+    if ( dUser && dUser['name'] && ( dUser['name'] != name ) )
         name = "<i>("+dUser['name']+")</i>"+name;
     
     if ( getSetting('msgs') && dUser ) {
-        dUser['msgs'].push( ({ time: mss }) );
-        saveUserDetails( id, ({ 'msgs': dUser['msgs'] }) );
+        if ( !dUser['msgs'] )
+            dUser['msgs'] = ({ });
+        dUser['msgs'][time]= msg;
+        saveWatchListUser( id, ({ 'msgs': dUser['msgs'] }) );
     }
     if ( !loading && $('.membersList').html() )
         addUserToMembersList( id, data, $('.membersList') );
@@ -1410,28 +1419,28 @@ function replaceChatLine ( lineObj ) {
 }
 
 function addUserToMembersList ( id, data, ul ) {
-	if ( data && !$('.membersList_'+id).html() ) {
-    	var name = data['name'].trunc(12);       
+        if ( data && !$('.membersList_'+id).html() ) {
+        var name = data['name'].trunc(12);       
       
         var li = buildli( ({ 'css': ({'padding':'0px'}), 'addClass':getGroupClassForUser( id )+" membersList_"+id }) );
         $( li ).html( " (" );
-    	$( li ).append( idLink(id,false) );
-    	$( li ).append( ") &lt;"+name+"&gt " );
-    	if ( data['names'] )
-       		$( li ).append("*");
-       	$( ul ).append( li );
+        $( li ).append( idLink(id,false) );
+        $( li ).append( ") &lt;"+name+"&gt " );
+        if ( data['names'] )
+                $( li ).append("*");
+        $( ul ).append( li );
        // if ( DEBUG ) 
-    //	    console.log('adding '+id+' to membersList');
+    //      console.log('adding '+id+' to membersList');
             
-	} else {
-    	//if ( DEBUG )
-        	//console.log('NOT adding '+id+' to membersList');
+        } else {
+        //if ( DEBUG )
+                //console.log('NOT adding '+id+' to membersList');
     }
 }
    
 function readChatLog () {
     // reset everything
-	membersList = [ ];
+        membersList = [ ];
     users = ({ });
     $('.membersList').remove();
     $('.chat-right').remove();
@@ -1441,7 +1450,7 @@ function readChatLog () {
     var chatlog = $( '.chatlog' ).children();
    
     
-	console.log('rebuilding chatlog');
+        console.log('rebuilding chatlog');
     // rebuild the chatlog 
     for ( var x = 0; x < chatlog.length; x++ ) {     
         replaceChatLine( chatlog[x] );          
@@ -1449,13 +1458,13 @@ function readChatLog () {
     
     if ( DEBUG ) {
         console.log('memberslist');
-		console.log(membersList);
+                console.log(membersList);
     }
     // Bigger chatbox
     $( '.wrapper').css({ 'width':'1135px' });
     $( '.chatscroll').css({ 'width':'850px','float':'left','padding-right':'3px','margin-bottom':'10px'});
     $( '.chatlog' ).css({ 'width' : '825px' });
-	$( '.chatbase').css({ 'width':'850px' });
+        $( '.chatbase').css({ 'width':'850px' });
     
     // build membersList panel
     var membersListPanel = buildTag( 'ul', ({'addClass':'membersList'}) );
@@ -1467,6 +1476,9 @@ function readChatLog () {
         var a = document.createElement( 'a' );
         $( a ).attr({'href':'#unreadNotifications'});
         $( a ).click( function ( e ) {
+            var panel = new Panel();
+            
+            
             console.log( unreadNotifications );
         });
         
@@ -1475,13 +1487,13 @@ function readChatLog () {
 
         // buttons
         var button = document.createElement( 'button' );
-       	$( button ).text( 'Refresh' );
+        $( button ).text( 'Refresh' );
         $( button ).click( function ( e ) {
-			readChatLog();
+                        readChatLog();
             addInfo( 'Chatlog refreshed','info' );
-           	e.stopPropagation();
+                e.stopPropagation();
         });
-    	var li = buildTag( 'li', ({ 'html': button }) );
+        var li = buildTag( 'li', ({ 'html': button }) );
     
         $( membersListPanel ).append( li );
         li = document.createElement( 'li' );
@@ -1492,7 +1504,7 @@ function readChatLog () {
     // build memberlist
     $.each( membersList, function ( id, data ) {
         //console.log('checking to add '+id);
-		addUserToMembersList( id, data, membersListPanel );
+                addUserToMembersList( id, data, membersListPanel );
      
     });
    
@@ -1500,7 +1512,7 @@ function readChatLog () {
     var div = document.createElement( 'div' );
     $( div ).addClass( 'chat-right' );
 
- 	// build tabs
+        // build tabs
     var tabs = document.createElement( 'div' );
     $( tabs ).addClass( 'watchTabs' );
     
@@ -1552,17 +1564,17 @@ function readChatLog () {
 // this is the function we hijack to read new chat messages.  need to try get it working for add_chat
 unsafeWindow.scroll_to_bottom_of_chat = function () { 
     chatscroll.stop().animate({scrollTop:chatscroll[0].scrollHeight},1e3);
-                                                      	
+                                                        
     var chatLine = $("div#chat .chatline:last-child");
-                                                     	
+                                                        
     if ( !startTime ) 
-		readChatLog();
+                readChatLog();
     else
         chatLine =  replaceChatLine( chatLine );
 } 
 
 $(document).ready(function () {
-	addGlobalStyle( css );
+        addGlobalStyle( css );
          loadWatchList();
     $( 'body').click( function ( e ) {
         
@@ -1579,30 +1591,30 @@ var css =
 ".watchMenuHeader  {color:#222222;background:#cccccc;border-bottom:1px solid #000000 } "
 +".watchMenuUser    {background:#222222;color:#cccccc }"
 +".watchListPanel   {position: fixed; top: 50px; left: 100px;;border:1px solid #000;z-index:1;padding:3px;"
-+"           	     color:#000000;background:#b0b0b0; max-height: 350px; overflow: auto; border-radius: 5px}"
++"                   color:#000000;background:#b0b0b0; max-height: 350px; overflow: auto; border-radius: 5px}"
 +".watchListPanel>ul { list-style-type: none; padding: 5px;margin:3px;border: 1px solid #000; background: #FFF }"
-+".membersList	    {color:#000000;max-height:320px;overflow:auto;float:right; "
++".membersList      {color:#000000;max-height:320px;overflow:auto;float:right; "
 +"                   list-style-type:none; margin:0px; padding:0px; border:1px solid #000; "
 +"                   background:#FFFFFF; width:220;border-radius:0px 0px 5px 5px;}"
 +".membersList    { width: 100%;float:left}"
 +".watchListSettings { max-height:320px;overflow:auto;float:right;border:1px solid #000; width:100%;"
-+"						background:#FFFFFF;color:#000000; border-radius:0px 0px 5px 5px; float:left}"
++"                                              background:#FFFFFF;color:#000000; border-radius:0px 0px 5px 5px; float:left}"
 +".watchListSettings>ul  {color:#000000; "
 +"                   list-style-type:none; margin:0px; padding:0px; border-top:1px solid #000; width:100%;"
 +"                   background:#FFFFFF; width:100%}"
 +".watchListSettings>ul>li>h3,.watchListSettings>ul>li>h2 { padding:0px }"
-+".chat-right>div,.watchListSettings	{ padding:0px;margin:0px}"
-+".chat-right	    { float:right; padding:0px;margin:0px width:220px}"
-	
-+".highlight	    {background:#cccccc}"
-+".selected	    {background:#cccccc}"
-+".saved		{background:green}"
++".chat-right>div,.watchListSettings    { padding:0px;margin:0px}"
++".chat-right       { float:right; padding:0px;margin:0px width:220px}"
+        
++".highlight        {background:#cccccc}"
++".selected         {background:#cccccc}"
++".saved                {background:green}"
 // for the infobar
-+".info				{background:yellow;color:#000000}"
-+".success			{background:green;color:#000000}"
-+".error,.warning	{background:red;color:yellow}"
++".info                         {background:yellow;color:#000000}"
++".success                      {background:green;color:#000000}"
++".error,.warning       {background:red;color:yellow}"
 //
-+".right		{float:right}"
++".right                {float:right}"
 +".watchListDetails { width: 50%; background: #FFFFFF; position: fixed; top: 25px; left: 25px; border:1px solid #000 }"
 +".watchListDump { width: 500px; height: 200px }"
 +".chat-right input { padding: 1px; text-align: left; width: 80px }"
@@ -1614,22 +1626,22 @@ var css =
 +".userTab { float: left; border-radius: 5px 0px 0px 0px; padding-left: 3px }"
 +".watchTab { float: right; border-radius: 0px 5px 0px 0px; text-align:right;padding-right:3px; }"
 // chatmode
-+".chatModeButton	{ width: 95px; }"
++".chatModeButton       { width: 95px; }"
 // user details
-+".msglist			{ max-height: 250px; overflow: auto; }"
++".msglist                      { max-height: 250px; overflow: auto; }"
 
 ;    
 
 /*
 var help = ({
-    "groupList"	:	"To edit a group name or color, click on the name or the color.  Clicking on the id will show the group details.<br>"
-    				+"id's cannot be changed",
+    "groupList" :       "To edit a group name or color, click on the name or the color.  Clicking on the id will show the group details.<br>"
+                                +"id's cannot be changed",
     "settingsMisc" : [
-    	["debugMode"	,	"Debug mode dumps a lot more status messages to the console.  This has a negative effect on performance (and in some "
-    						+"cases can freeze up the tab if the console is open), so only use if you need to"],
-        ["logging"		,	"With logging turned on, every message by a person on your watchlist will be saved.  This is useful, but can eat up a lot "
-        					+" of memory, espically with large watchlists.  Turning this off also deletes the saved logs"],
-        ["pasteAddress"	,	"This is the address used by the paste message button.  It doesn't have to be an address, it can be any text"],
-        ["resetAll"		,	"The reset all button resets all saved data" ],
+        ["debugMode"    ,       "Debug mode dumps a lot more status messages to the console.  This has a negative effect on performance (and in some "
+                                                +"cases can freeze up the tab if the console is open), so only use if you need to"],
+        ["logging"              ,       "With logging turned on, every message by a person on your watchlist will be saved.  This is useful, but can eat up a lot "
+                                                +" of memory, espically with large watchlists.  Turning this off also deletes the saved logs"],
+        ["pasteAddress" ,       "This is the address used by the paste message button.  It doesn't have to be an address, it can be any text"],
+        ["resetAll"             ,       "The reset all button resets all saved data" ],
     ],
     */

@@ -549,6 +549,7 @@ function saveWatchListUser ( userid, data ) {
 
     }
     saveWatchList();
+    console.log(watchList[userid]);
 }
 
 function deleteUserDetails ( userid ) {
@@ -1140,7 +1141,10 @@ function showUserDetails ( id ) {
     });
 
     var msgs = getUser(id)['msgs'];
-    var smsgs = getWatchListUser( id, 'msgs' );
+    var smsgs = getWatchListUser( id, 'msgs' );  
+    console.log('smsm');
+    console.log(smsgs);
+    console.log('smsms end');
     if ( msgs ) {
         var idstr = "("+id+") &lt;"+name+"&gt;";
         var li = buildli( 'Messages this session: ' );
@@ -1148,6 +1152,24 @@ function showUserDetails ( id ) {
         
         var msglist = buildTag( 'ul', ({ 'addClass':'msglist' }) );
         $.each( msgs, function( key, value ) {
+//date.format( 'yy-MM-dd hh:mm:ss' );
+            console.log(key);
+            var time = getTime(key);
+            key = time.format('hh:mm:ss');
+            var li = buildli( key+" "+idstr+" "+value );
+            $( msglist ).append( li );
+        });
+        rows.push( buildli( msglist ) );
+    }
+    
+    if ( smsgs ) {
+        var idstr = "("+id+") &lt;"+name+"&gt;";
+        var li = buildli( 'Message history: ' );
+        rows.push( li );
+  
+        var msglist = buildTag( 'ul', ({ 'addClass':'msglist' }) );
+console.log(smsgs);
+        $.each( smsgs, function( key, value ) {
 //date.format( 'yy-MM-dd hh:mm:ss' );
             console.log(key);
             var time = getTime(key);
@@ -1189,16 +1211,25 @@ function handleUserPopup ( type, id, pos ) {
     type = type.replace( "#", "" );
     switch ( type ) {
         case "saveWatchList"            :       list = ({ 'header' : 'Pick a group', 'li' : ({ 0 : 'default', 1:'group1',2:'group2' }) });
-                                                                break;
-        case "showWatchListDetails"     :   showUserDetails(id);
+                                                break;
+                                                
+        case "showWatchListDetails"     :       showUserDetails(id);
+                                                return;
+                                                break;
+       
+        case "delWatchList"             :       deleteUserDetails( id );
+                                                addInfo( "Deleted "+id+" from watchlist", "warning" );
+                                                readChatLog();
+                                                return;
+                                                break;
 
-                                                                return;
-                                                                break;
-        case "delWatchList"                     :       deleteUserDetails( id );
-                                                                addInfo( "Deleted "+id+" from watchlist", "warning" );
-                                                                readChatLog();
-                                                                return;
-                                                                break;
+        case "watchUserBets"            :       var tmp = unsafeWindow.settings;
+                                                tmp['chat_watch_player'] = id;
+                                                tmp['chat_min_change'] = 0;
+                                                tmp['chat_min_risk'] = 0;
+                                                unsafeWindow.update_settings(tmp);
+                                                addInfo("Now watching all bets of "+id,"info");
+                                                return;
         default                         :       break;
     }
     
@@ -1307,7 +1338,36 @@ function replaceChatLine ( lineObj ) {
     // match 11:11:11 (1111) <abc> hello world?
     var matchStr = /^([0-9\:]+)+\s\((.*?)\)\s&lt;(.*?)&gt;\s(.*)$/; 
 
-    
+    // ^([0-9\:]+)+\s\*\*\*\s(.*?)\s\((.*?)\)\s\[\#(.*?)\] bet (.*?) (.*?) at (.*?)% and (.*?) \*\*\*$
+    // matches
+    // 14:17:11 *** matr1x062 (369479) [#440980537] bet 6.4 BTC at 49.5% and lost ***
+    //
+    //^([0-9\:]+)+\s\*\*\*\s(.*?)\s\((.*?)\)\s\[\#(.*?)\] bet (.*?) (.*?) at (.*?)% and (.*?) (.*?)$
+    // matches above and 
+    //
+    // 14:17:14 *** matr1x062 (369479) [#440980672] bet 3.2 BTC at 49.5% and won 3.2 BTC ***
+/*
+ *     // 14:17:11 *** matr1x062 (369479) [#440980537] bet 6.4 BTC at 49.5% and lost ***
+ * MATCH 1
+    1.      
+    `14:17:11`
+    2.      
+    `matr1x062`
+    3.      
+    `369479`
+    4.      
+    `440980537`
+    5.      
+    `6.4`
+    6.      
+    `BTC`
+    7.      
+    `49.5`
+    8.      
+    `lost` or `won`
+    9.      
+    `***`  or `3.2 BTC ***`
+*/
     // we already checked this one
     // only thing that could change is the group?
     // for now, check it again just in case something else changes I forgot about
@@ -1400,7 +1460,7 @@ function replaceChatLine ( lineObj ) {
     if ( dUser && dUser['name'] && ( dUser['name'] != name ) )
         name = "<i>("+dUser['name']+")</i>"+name;
     
-    if ( getSetting('msgs') && dUser ) {
+    if ( getSetting('msgs') && dUser && !loading) {
         if ( !dUser['msgs'] )
             dUser['msgs'] = ({ });
         dUser['msgs'][time]= msg;
@@ -1504,8 +1564,30 @@ function readChatLog () {
     // build memberlist
     $.each( membersList, function ( id, data ) {
         //console.log('checking to add '+id);
-                addUserToMembersList( id, data, membersListPanel );
-     
+        addUserToMembersList( id, data, membersListPanel );
+        if ( data ) {
+        
+        var msgs = data['msgs'];
+
+        var dtUser = getWatchListUser( id, ['msgs','name'] );
+       console.log(dtUser);
+
+        if ( dtUser && getSetting('msgs') && data['msgs'] ) {
+            dtUser = dtUser.msgs;
+            if ( !dtUser )
+                dtUser = ({ });
+            //dUser
+            console.log('dtUser');
+       console.log(dtUser);  
+       console.log('data');
+        console.log(data);  
+        console.log(id);
+            $.each( data['msgs'], function ( k, v ) {
+                dtUser[k]= v;
+            });
+    
+            saveWatchListUser( id, ({ 'msgs': dtUser }) );
+        } }
     });
    
     // container
@@ -1645,3 +1727,5 @@ var help = ({
         ["resetAll"             ,       "The reset all button resets all saved data" ],
     ],
     */
+//14:17:11 *** matr1x062 (369479) [#440980537] bet 6.4 BTC at 49.5% and lost ***
+//14:17:14 *** matr1x062 (369479) [#440980672] bet 3.2 BTC at 49.5% and won 3.2 BTC ***

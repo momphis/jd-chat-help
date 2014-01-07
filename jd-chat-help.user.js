@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       just-dice.com chat helper
 // @namespace  http://use.i.E.your.homepage/
-// @version    0.12
+// @version    0.15
 // @description  script to improve just-dice.com's chat.  Adds colored names to easily track users, highlights, nicknames, more
 // @require    	http://code.jquery.com/jquery-latest.min.js
 // @match      https://just-dice.com/*
@@ -13,9 +13,8 @@
 // @copyright  2014+, momphis.justdice@gmail.com
 // ==/UserScript==
 // Smoked lots of weed making this, so everything is all over the place.  Apologies to those who read on.
-
+var chatMode = false
 var loading;
-var settings = ({ });
 var setuptimer;
 var isloaded = false;
 var membersList = ({ });
@@ -38,32 +37,63 @@ if ( DEBUG == true ) {
     console.log('End dump');
 }
 
+
 var watchList = loadWatchList();
-
-//watchList = GM_getValue( 'watchList' );
-
 if ( DEBUG == true ) {
 	console.log('watchlist');
 	console.log( watchList );
 }
-
 //resetWatchList();
 
-//watchGroups = GM_getValue( 'watchGroups' );
-
-
-var watchGroups = loadGroups();;
-
+var watchGroups = loadGroups();
 if ( DEBUG == true ) {
 	console.log('watchgroups');
 	console.log( watchGroups );
 }
 
+var settings = loadSettings();
+if ( DEBUG == true ) {
+	console.log('settings');
+	console.log( settings );
+}
+
 // turn off bet controls and setup address button
-// also hides deposit/withdraw/balance until I change it
 function toggleBetControls () {
-    for ( var x = 2; x < 6; x++ )
-    	$( $( ".wrapper").children()[x] ).toggle();
+    
+	for ( var x = 2; x < 6; x++ ) { // hide all the bet releated button containers
+    	var wrap = $( ".wrapper").children()[x];
+        $( wrap ).toggle();
+	}
+    if ( $(".chatModeDiv").html() ) { // we're already hidden, let's put everything back
+        $( '#a_withdraw' ).removeClass( 'chatModeButton' );
+        $( '#a_deposit' ).removeClass( 'chatModeButton' );
+
+        $( '#a_random' ).before( $( '#a_withdraw' ) );
+        $( '#a_withdraw' ).before( $( '#a_deposit' ) );          
+        
+        $( '.bal_text' ).after( $( '#pct_balance' ) );
+    	$( ".chatstat>table").css({'float':'none'});
+          
+        // like we were never here
+        $( '.chatModeDiv' ).remove();
+    } else {     
+        // setup deposit, withdraw buttons 
+    	$( '#a_deposit').addClass( 'chatModeButton' );
+    	$( '#a_withdraw').addClass( 'chatModeButton' );
+        
+        // setup new div and move above buttons
+    	var div = buildTag( 'div', ({'html':$( '#a_deposit' ), 'css':({'float':'right' }),'addClass':'chatModeDiv' }) );
+    	$( div ).append( $( '#a_withdraw' ) );
+    	$( div ).append( "<div style=\"clear:both\"></div>" );
+
+        // place holder for balance
+        var d2 = buildTag( 'div', ({ 'addClass':'big', 'html':$('#pct_balance' ) }) );
+    	$( div ).append( d2 ) ;
+        
+    	// put new div after the chatstats
+    	$( ".chatstat>table").after( div );
+    	$( ".chatstat>table").css({'float':'left'});
+    }
 }
 
 var button = document.createElement( 'button' );
@@ -73,6 +103,7 @@ var pasted = false;
 $( button ).click( function ( e ) {
     var input = $(".chatinput");
     
+
 	address = getPasteAddress();
     if ( !settings['temp']) {
         if ( !input.val() || input.val() == address ) {
@@ -90,6 +121,11 @@ $( button ).click( function ( e ) {
         settings['temp'] = false;
     }
 });
+var a = buildTag( 'a', ({ 'html':'t' }) );
+$( a ).click( function ( e ) { 
+    toggleBetControls();
+});
+$('.chatbutton').after( $( a ) );
 $('.chatbutton').after( $( button ) );
 
 function getPasteAddress () {
@@ -245,12 +281,24 @@ Date.prototype.format = function(format) //author: meizz
         ("00"+ o[k]).substr((""+ o[k]).length));
   return format;
 }
-// //date.format( 'yy-MM-dd hh:mm:ss' );
-function time () {
+//date.format( 'yy-MM-dd hh:mm:ss' );
+function getTime (instr) {
+
+    if (  instr )
+        return new Date(instr);
     return new Date();
 }
 
+function jdTime ( timeStr ) {
 
+    var jd = timeStr.split(":");
+
+    var time = getTime();
+    time.setHours(jd[0],jd[1],jd[2]);
+// time.setHours(5,5,5);
+  
+    return time;
+}
 
 // injects new css
 // main css is at the bottom of the file
@@ -264,7 +312,13 @@ function addGlobalStyle(newcss) {
     head.appendChild(style);
 }
 
-
+function dumpAllSaved () {
+    var str = "";
+    $.each( GM_listValues(), function ( key, value ) {
+    	str += value+"="+GM_getValue( value )+"<br>";
+	});
+    return str;
+}
 
 
 function dumpWatchListToString () {
@@ -319,10 +373,66 @@ function resetWatchList () {
 	saveWatchList();
 }
 
+// basic settings for things like paste address/show msgs etc
+function loadSettings () { 
+    //GM_deleteValue('settings');
+  var tmp = GM_getValue( 'settings' );
+  
+  if ( tmp )
+    tmp = JSON.parse( tmp );
+  else
+    return ({ });
+  console.log( 'loaded settings' );
+  return tmp;
+}
+
+function saveSettings () { 
+  if ( !settings )
+    return false;
+  var tmp = JSON.stringify( settings );
+  GM_setValue( 'settings', tmp );
+  console.log( 'saved settings' );
+if ( DEBUG )
+    console.log(tmp);
+  return true;
+}
+
+function getSetting ( setting ) {
+    if ( !settings )
+      loadSettings();
+    
+    return settings[setting]; 
+}
+
+function setSetting ( setting, value ) {
+    settings[setting] = value;
+    saveSettings();
+}
+
+function toggleSetting ( setting ) {
+    var current = getSetting(setting);
+    if ( current )
+        setSetting( setting, false );
+    else
+        setSetting( setting, true );
+    current = getSetting(setting);
+if ( DEBUG )
+    console.log('toggled '+setting+" = "+current );
+    return current;
+}
+
 function saveWatchList ( ) {
-    GM_setValue( 'watchList', JSON.stringify( watchList ) );
+    var tmpList = ({ });
+    
+    if ( !getSetting( 'msgs' ) ) {
+        $.each( watchList, function ( key, value ) {
+            tmpList[key] = value;
+            tmpList[key]['msgs'] = ({ });
+        });
+    } else tmpList = watchList;
+    
+    GM_setValue( 'watchList', JSON.stringify( tmpList ) );
     console.log( 'saving watchlist' );
-    console.log( watchList );
 }
 
 function getUser ( id ) {
@@ -393,11 +503,45 @@ function getGroupAmount () {
 function getGroup (id) {
     return watchGroups[id];
 }
+
+                              
+function getUserDetails ( userid, type ) {
+   var types = [ ];
+   var tmp;
+   
+   if ( type ) {
+      switch ( typeof type ) {
+         case 'string'  :  types = [ type ];
+                           break;
+         case 'array'   :  types = type;
+                           break;
+         default        :  break;
+      }
+      for ( var x = 0; x < types.length; x++ )
+         tmp[ types[x] ] = watchList[userid][types[x]];
+   } else
+   tmp = watchList[userid]; 
+   
+   return tmp;
+}
+
 function saveUserDetails ( userid, data ) {
+    console.log(userid);
+    console.log(data);
     if ( !watchList[userid] )
-        watchList[userid] = ({ });
-    
-    watchList[userid] =  data;
+        watchList[userid] = data;
+    else {
+        $.each( data, function ( key, value ) {
+           var tmp = watchList[userid][key];
+           
+           if ( tmp && ( typeof tmp == 'Array' || typeof tmp == 'Object' ) ) 
+              watchList[userid][key].push( value );
+           else
+              watchList[userid][key] = value;
+        });
+    	watchList[userid].push(data);
+        console.log(watchList[userid]);
+    }
     saveWatchList();
 }
 
@@ -521,46 +665,48 @@ function obslice(obj, start, end) {
 }
 // [0].tagName;
 // if is string or has children then that = html
-function buildli ( settings ) {
+function buildli ( buildData ) {
     var li = document.createElement( 'li' );
 
-    if ( !settings )
-        settings = ({ });    
-    if ( typeof settings == 'string' || ( $(settings)[0].tagName ) )
-        settings = ({ 'html':settings });
+    if ( !buildData )
+        buildData = ({ });    
+    if ( typeof buildData == 'string' || ( $(buildData)[0].tagName ) )
+        buildData = ({ 'html':buildData });
     
-    if ( settings['css'] )
-        $( li ).css( settings['css'] );
-    if ( settings['addClass'] )
-        $( li ).addClass( settings['addClass'] );
-    if ( settings['html'] )
-        $( li ).html( settings['html'] );
-    if ( settings['text'] )
-        $( li ).text( settings['text'] );
+    if ( buildData['css'] )
+        $( li ).css( buildData['css'] );
+    if ( buildData['addClass'] )
+        $( li ).addClass( buildData['addClass'] );
+    if ( buildData['html'] )
+        $( li ).html( buildData['html'] );
+    if ( buildData['text'] )
+        $( li ).text( buildData['text'] );
     
     return li;
 }
 
-function buildTag ( type, settings ) {
+function buildTag ( type, buildData ) {
     var tag = document.createElement( type );
 
-    if ( !settings )
-        settings = ({ });    
-    if ( typeof settings == 'string' || ( $(settings)[0].tagName ) )
-        settings = ({ 'html':settings });
+    if ( !buildData )
+        buildData = ({ });    
+    if ( typeof buildData == 'string' || ( $(buildData)[0].tagName ) )
+        buildData = ({ 'html':buildData });
     
-    if ( settings['css'] )
-        $( tag ).css( settings['css'] );
-    if ( settings['addClass'] )
-        $( tag ).addClass( settings['addClass'] );
-    if ( settings['html'] )
-        $( tag ).html( settings['html'] );
-    if ( settings['text'] )
-        $( tag ).text( settings['text'] );
+    if ( buildData['css'] )
+        $( tag ).css( buildData['css'] );
+    if ( buildData['addClass'] )
+        $( tag ).addClass( buildData['addClass'] );
+    if ( buildData['html'] )
+        $( tag ).html( buildData['html'] );
+    if ( buildData['text'] )
+        $( tag ).text( buildData['text'] );
     
     return tag;
 }
 
+function writeStats () { }
+    
 function settingsMenuObj () {
     this.unsavedGroups;
     
@@ -819,7 +965,7 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     });
     
     var li = buildli();
-   	if ( showMore ) {
+    if ( showMore ) {
 
         var a = document.createElement( 'a' );
         $( a ).addClass( "watchMenuLink" );
@@ -844,10 +990,34 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     }
     $( ul ).append( li );  
     $( div ).append( ul );
+    
+    // Now the misc settings
     ul = buildTag( 'ul', ({ 'addClass':'watchListMisc','html':'<li><h3>Misc</h3></li>' }) );
     
+    var msgSetting = getSetting('msgs');
+
+    var button = document.createElement( 'button' );
+    $( button ).text( msgSetting ? 'Turn logging off' : 'Turn logging on' );
+    if ( msgSetting )
+    	$( button ).css({'background':'green'});
+    $( button ).click( function ( e ) {
+    	if ( toggleSetting('msgs')==true ) {
+          
+            $( this ).text( 'Turn logging off' );
+            addInfo( 'Logged turned on','success' );
+            $( this ).css({'background':'green'});
+        } else {
+       
+            $( this ).text( 'Turn logging on' );
+            addInfo( 'Logging turned on','warning' );
+            $( this ).css({'background':'#ccc'});
+        }
+    });
+    var li = buildli( button );
+    $( ul ).append( li );
+    
     address = getPasteAddress();
-	//addresspaste input
+    //addresspaste input
     var input = buildTag( 'input', ({ 'addClass':'editAddressPaste', 'css':({'width':'180px' }) }) );
     $( input ).val( address );
     $( input ).keyup( function ( e ) {
@@ -856,15 +1026,46 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     var li = buildli( ({'html':input }) );
 	$( ul ).append( li );
 
-    // import/export buttons
+    // debug button
+    var button = document.createElement( 'button' );
+    $( button ).text( 'Debug' );
+    if ( DEBUG )
+    	$( button ).css({'background':'green'});
+    $( button ).click( function ( e ) {
+    	if ( GM_getValue('debug') ) {
+        	GM_setValue('debug',false);
+         	DEBUG = false;
+            addInfo( 'Debug mode off','warning' );
+            $( this ).css({'background':'#aaa'});
+        } else {
+            GM_setValue('debug',true);
+            addInfo( 'Debug mode on','warning' );
+            DEBUG = true;
+            $( this ).css({'background':'green'});
+        }
+    });
+    var li = buildli( button );
+    $( ul ).append( li );
 
+	// reset button    
+    button = document.createElement( 'button' );
+    $( button ).text( 'Reset All' );
+    $( button ).click( function ( e ) {
+    	resetAll();
+        addInfo( 'All saved values reset. Hope you made a backup','warning' );
+        e.stopPropagation();
+    });
+    $( li ).append( button );
+    $( ul ).append( li );
+    
+    // import/export buttons
     var button = document.createElement( 'button' );
     $( button ).html( 'Export watchlist' );
     $( button ).click( function ( e ) { 
     	var panel = new Panel();
         var li = document.createElement( 'li' );
-        $( li ).append( "<textarea class=watchListDump>"+dumpWatchListToString()+"</textarea>" );
-        
+        //$( li ).append( "<textarea class=watchListDump>"+dumpWatchListToString()+"</textarea>" );
+		$( li ).append( "<textarea class=watchListDump>"+dumpAllSaved()+"</textarea>" );        
         panel.setTitle( 'Export watchlist' );
 		panel.addClass('watchListPanel');
         panel.build( [ li ]);
@@ -917,10 +1118,18 @@ function showUserDetails ( id ) {
     var name = watch['name'];
    
 
+    var toSet = ({ "Name":name,"id":id });
+    $.each( toSet, function( key, value ) {
+        var li = buildli( "<b>"+key+"</b>: "+value );
+       	rows.push( li );    	 
+    });
+    
+    // get rid of this once we're clear on what we want to show here
     $.each( watch, function( key, value ) {
-
-        var li = buildli( key+"="+JSON.stringify(value) );
-        rows.push( li );
+        if ( key != 'msgs' && key != 'name' ) {
+        	var li = buildli( key+"="+JSON.stringify(value) );
+        	rows.push( li );
+        }
     });
 
 	var msgs = getUser(id)['msgs'];
@@ -929,14 +1138,17 @@ function showUserDetails ( id ) {
         var idstr = "("+id+") &lt;"+name+"&gt;";
         var li = buildli( 'Messages this session: ' );
         rows.push( li );
+        
+        var msglist = buildTag( 'ul', ({ 'addClass':'msglist' }) );
         $.each( msgs, function( key, value ) {
 //date.format( 'yy-MM-dd hh:mm:ss' );
             console.log(key);
-            var time = new Date(key);
+            var time = getTime(key);
             key = time.format('hh:mm:ss');
-        	var li = buildli( key+" "+idstr+" "+value );
-        	rows.push( li );
+	    var li = buildli( key+" "+idstr+" "+value );
+	    $( msglist ).append( li );
     	});
+        rows.push( buildli( msglist ) );
     }
     /*
     var names = membersList[id]['names'];
@@ -1047,7 +1259,7 @@ function buildUserPopup ( anchor, id ) {
     name = membersList[id]['name']
         
     var mHeader = "("+id+") &lt;"+name+"&gt;";
-    var watchMenuItems = ({ "Save to watchlist":'saveWatchList',"Show Details":'showWatchListDetails',"Remove from watchlist":"delWatchList",
+    var watchMenuItems = ({ "Show Details":'showWatchListDetails',"Save to watchlist":'saveWatchList',"Remove from watchlist":"delWatchList",
                            "Watch user bets":"watchUserBets","Ignore":"ignoreUser" });
 
     
@@ -1086,7 +1298,7 @@ function replaceChatLine ( lineObj ) {
     var line = $( lineObj ).html();
 	var checked = false;
     // match 11:11:11 (1111) <abc> hello world?
-    var matchStr = /^([0-9\:]+)+\s\((.*?)\)\s&lt;(.*)&gt;\s(.*)$/; 
+    var matchStr = /^([0-9\:]+)+\s\((.*?)\)\s&lt;(.*?)&gt;\s(.*)$/; 
 
     
     // we already checked this one
@@ -1118,13 +1330,11 @@ function replaceChatLine ( lineObj ) {
     	data['lastseen'] = result[1];
     	data['msg'] = result[4];
     }
-    var jdTime = data['lastseen'].split(":");
-   	var time = new Date();
-    time.setHours(jdTime[0]);
-    time.setMinutes(jdTime[1]);
-    time.setSeconds(jdTime[2]);
-    //time = new Date( time.get
 	var name = data['name'], id = data['id'], msg = data['msg'], timestamp = data['lastseen'];
+   	var time = getTime();
+	time = jdTime(timestamp);
+    //time = new Date( time.get
+
 	var a = document.createElement( 'a' );
 
 
@@ -1177,16 +1387,23 @@ function replaceChatLine ( lineObj ) {
 
         membersList[id]['msgs'][ time ] = msg;
     }
+
+    // check for nicknames. must have 3/4 functions for this.  Sort it out
+    var dUser = getUserDetails( id, ['name','msgs'] );
+    if ( dUser && dUser['name'] != name )
+        name = "<i>("+dUser['name']+")</i>"+name;
+    
+    if ( getSetting('msgs') && dUser ) {
+        dUser['msgs'].push( ({ time: mss }) );
+        saveUserDetails( id, ({ 'msgs': dUser['msgs'] }) );
+    }
     if ( !loading && $('.membersList').html() )
         addUserToMembersList( id, data, $('.membersList') );
     
     $( lineObj ).html( timestamp+" (" );
     $( lineObj ).append(  a  );
     
-    // check for nicknames
-   	var dUser = dumpSavedUser(id);
-    if ( dUser && dUser['name'] != name )
-        name = "<i>("+dUser['name']+")</i>"+name;
+
     
     $( lineObj ).append( ") &lt;"+name+"&gt "+msg );
     $( lineObj ).attr({ 'dataDump' : JSON.stringify(data) });
@@ -1211,7 +1428,7 @@ function addUserToMembersList ( id, data, ul ) {
         	//console.log('NOT adding '+id+' to membersList');
     }
 }
-    
+   
 function readChatLog () {
     // reset everything
 	membersList = [ ];
@@ -1257,43 +1474,14 @@ function readChatLog () {
         $( membersListPanel ).append( li );
 
         // buttons
-
-       	var button = document.createElement( 'button' );
-       	$( button ).text( 'D' );
-        if ( DEBUG )
-            $( button ).css({'background':'green'});
-        $( button ).click( function ( e ) {
-            if ( GM_getValue('debug') ) {
-                GM_setValue('debug',false);
-                DEBUG = false;
-                addInfo( 'Debug mode off','warning' );
-                $( this ).css({'background':'#aaa'});
-            } else {
-                GM_setValue('debug',true);
-                addInfo( 'Debug mode on','warning' );
-                DEBUG = true;
-                $( this ).css({'background':'green'});
-            }
-        });
-        var li = buildli( button );
-        
-        button = document.createElement( 'button' );
-       	$( button ).text( 'Reset' );
-        $( button ).click( function ( e ) {
-            resetAll();
-            addInfo( 'All saved values reset. Hope you made a backup','warning' );
-            e.stopPropagation();
-        });
-        $( li ).append( button );
-
-        button = document.createElement( 'button' );
+        var button = document.createElement( 'button' );
        	$( button ).text( 'Refresh' );
         $( button ).click( function ( e ) {
 			readChatLog();
             addInfo( 'Chatlog refreshed','info' );
            	e.stopPropagation();
         });
-        $( li ).append( button );
+    	var li = buildTag( 'li', ({ 'html': button }) );
     
         $( membersListPanel ).append( li );
         li = document.createElement( 'li' );
@@ -1391,7 +1579,7 @@ var css =
 ".watchMenuHeader  {color:#222222;background:#cccccc;border-bottom:1px solid #000000 } "
 +".watchMenuUser    {background:#222222;color:#cccccc }"
 +".watchListPanel   {position: fixed; top: 50px; left: 100px;;border:1px solid #000;z-index:1;padding:3px;"
-+"           	     color:#000000;background:#b0b0b0; max-height: 300px; overflow: auto; border-radius: 5px}"
++"           	     color:#000000;background:#b0b0b0; max-height: 350px; overflow: auto; border-radius: 5px}"
 +".watchListPanel>ul { list-style-type: none; padding: 5px;margin:3px;border: 1px solid #000; background: #FFF }"
 +".membersList	    {color:#000000;max-height:320px;overflow:auto;float:right; "
 +"                   list-style-type:none; margin:0px; padding:0px; border:1px solid #000; "
@@ -1424,10 +1612,24 @@ var css =
 +".watchTabs>div    { width: 110px; border: 1px solid #000; }"
 +".watchTabs>.active { background:#eee }"
 +".userTab { float: left; border-radius: 5px 0px 0px 0px; padding-left: 3px }"
-+".watchTab { float: right; border-radius: 0px 5px 0px 0px; text-align:right;padding-right:3px; }";    
++".watchTab { float: right; border-radius: 0px 5px 0px 0px; text-align:right;padding-right:3px; }"
+// chatmode
++".chatModeButton	{ width: 95px; }"
+// user details
++".msglist			{ max-height: 250px; overflow: auto; }"
+
+;    
 
 /*
 var help = ({
     "groupList"	:	"To edit a group name or color, click on the name or the color.  Clicking on the id will show the group details.<br>"
     				+"id's cannot be changed",
+    "settingsMisc" : [
+    	["debugMode"	,	"Debug mode dumps a lot more status messages to the console.  This has a negative effect on performance (and in some "
+    						+"cases can freeze up the tab if the console is open), so only use if you need to"],
+        ["logging"		,	"With logging turned on, every message by a person on your watchlist will be saved.  This is useful, but can eat up a lot "
+        					+" of memory, espically with large watchlists.  Turning this off also deletes the saved logs"],
+        ["pasteAddress"	,	"This is the address used by the paste message button.  It doesn't have to be an address, it can be any text"],
+        ["resetAll"		,	"The reset all button resets all saved data" ],
+    ],
     */

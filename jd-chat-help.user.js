@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       just-dice.com chat helper
 // @namespace  http://use.i.E.your.homepage/
-// @version    0.187
+// @version    0.188
 // @description  script to improve just-dice.com's chat.  Adds colored names to easily track users, highlights, nicknames, more
 // @require     http://code.jquery.com/jquery-latest.min.js
 // @match      https://just-dice.com/*
@@ -23,13 +23,28 @@ var users = ({ });
 var startTime;
 var unreadNotifications = ({ });
 var settingsMenu;
-var DEBUG = GM_getValue('debug');
 var cmdHistory;
 var socket;
 var temp = ({ }); // temp global settings
 var timer = 60000; // timer for heartbeat. 60sec (that's how often btc average updates)
 var showControls = true; // for the toggle bet controls mode
 //GM_deleteValue('watchList');
+
+var settings = loadSettings();
+
+function getSetting ( setting ) {
+    if ( !settings )
+      loadSettings();
+    
+    return settings[setting]; 
+}
+var DEBUG = getSetting('debug');
+
+function setSetting ( setting, value ) {
+    settings[setting] = value;
+    saveSettings();
+}
+
 
 var defaultGroups = ({ 0:({'color':'#000','name':'default','background':'#FFFFFF'}), 
                  1:({'color':'blue','name':'group1','background':'#FFFFFF'}) , 
@@ -57,7 +72,7 @@ if ( DEBUG == true ) {
         console.log( watchGroups );
 }
 
-var settings = loadSettings();
+
 if ( DEBUG == true ) {
         console.log('settings');
         console.log( settings );
@@ -220,11 +235,16 @@ $( button2 ).click( function ( e ) {
     if ( hideControls == false ) {
         setSetting( 'hideBetControls', true );
         $( this ).addClass('button-on');
+        addInfo( "Chat Mode On" );
     } else {
         setSetting( 'hideBetControls', false );
         $( this ).removeClass('button-on');
+        addInfo( "Chat Mode Off" );
+        
     }
     toggleBetControls();
+    
+    e.stopPropagation();
 });
 if ( getSetting( 'hideBetControls' ) ) {
     $( button2 ).addClass( 'button-on' );
@@ -505,17 +525,6 @@ if ( DEBUG )
   return true;
 }
 
-function getSetting ( setting ) {
-    if ( !settings )
-      loadSettings();
-    
-    return settings[setting]; 
-}
-
-function setSetting ( setting, value ) {
-    settings[setting] = value;
-    saveSettings();
-}
 
 function toggleSetting ( setting ) {
     var current = getSetting(setting);
@@ -1115,6 +1124,7 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     $( input ).val( address );
     $( input ).keyup( function ( e ) {
        savePasteAddress( $( this ).val() ); 
+       addInfo("Address updated","info");
     });
     var li = buildli( ({'html':input }) );
     $( ul ).append( li );
@@ -1132,7 +1142,7 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     $( select ).change( function ( e ) {
          console.log( $( '.currChange option:selected').val() );
          setSetting( 'currency', $( '.currChange option:selected').val() );
-         
+         addInfo("Currency updated","info");       
          // restart heartbeat to fetch new currency price
          temp['last'] = false;
          clearTimeout('heartBeat');
@@ -1150,7 +1160,7 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
         if ( toggleSetting('msgs')==true ) {
           
             $( this ).text( 'Turn logging off' );
-            addInfo( 'Logged turned on','success' );
+            addInfo( 'Logging turned on','success' );
             $( this ).addClass('button-on')
         } else {
        
@@ -1164,22 +1174,24 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     
 
     // debug button
+    // dunno why the addInfos aren't working
     var button = document.createElement( 'button' );
     $( button ).text( 'Debug' );
     if ( DEBUG )
-        $( button ).css({'background':'green'});
+            $( button ).addClass('button-on');
     $( button ).click( function ( e ) {
-        if ( GM_getValue('debug') ) {
-                GM_setValue('debug',false);
-                DEBUG = false;
+        if ( getSetting('debug') ) {
+            setSetting('debug',false);
+            DEBUG = false;
             addInfo( 'Debug mode off','warning' );
-            $( this ).css({'background':'#aaa'});
+            $( this ).removeClass('button-on');
         } else {
-            GM_setValue('debug',true);
+            setSetting('debug',true);
             addInfo( 'Debug mode on','warning' );
             DEBUG = true;
-            $( this ).css({'background':'green'});
+            $( this ).addClass('button-on');
         }
+        e.stopPropagation();
     });
     var li = buildli( button );
     $( ul ).append( li );

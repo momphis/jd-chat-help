@@ -28,6 +28,7 @@ var cmdHistory;
 var socket;
 var temp = ({ }); // temp global settings
 var timer = 60000; // timer for heartbeat. 60sec (that's how often btc average updates)
+var showControls = true; // for the toggle bet controls mode
 //GM_deleteValue('watchList');
 
 var defaultGroups = ({ 0:({'color':'#000','name':'default','background':'#FFFFFF'}), 
@@ -145,9 +146,10 @@ var div = buildTag( 'div', ({ 'addClass':'lastPrice buttons' }) );
 $( '.header' ).after( div );
 heartBeat();
 
+
 // turn off bet controls and setup address button
 function toggleBetControls () {
-    
+        
         for ( var x = 2; x < 6; x++ ) { // hide all the bet releated button containers
         var wrap = $( ".wrapper").children()[x];
         $( wrap ).toggle();
@@ -184,15 +186,15 @@ function toggleBetControls () {
     }
 }
 
+// paste address button
 var button = document.createElement( 'button' );
-$( button ).text("Paste Addresss");
+$( button ).text("Addresss");
 var pasted = false;
 
 $( button ).click( function ( e ) {
-    var input = $(".chatinput");
-    
+    var input = $(".chatinput");   
 
-        address = getPasteAddress();
+    address = getPasteAddress();
     if ( !settings['temp']) {
         if ( !input.val() || input.val() == address ) {
             if ( !input.val() )
@@ -209,11 +211,28 @@ $( button ).click( function ( e ) {
         settings['temp'] = false;
     }
 });
-var a = buildTag( 'a', ({ 'html':'t' }) );
-$( a ).click( function ( e ) { 
+
+// mode button
+var button2 = buildTag( 'button', ({ 'html':'Mode' }) );
+$( button2 ).click( function ( e ) { 
+    var hideControls = getSetting( 'hideBetControls' );
+    
+    if ( hideControls == false ) {
+        setSetting( 'hideBetControls', true );
+        $( this ).addClass('button-on');
+    } else {
+        setSetting( 'hideBetControls', false );
+        $( this ).removeClass('button-on');
+    }
     toggleBetControls();
 });
-$('.chatbutton').after( $( a ) );
+if ( getSetting( 'hideBetControls' ) ) {
+    $( button2 ).addClass( 'button-on' );
+    toggleBetControls();
+}
+
+// add both buttons after chat 'send' button
+$('.chatbutton').after( $( button2 ) );
 $('.chatbutton').after( $( button ) );
 
 function getPasteAddress () {
@@ -1124,18 +1143,19 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     var button = document.createElement( 'button' );
     $( button ).text( msgSetting ? 'Turn logging off' : 'Turn logging on' );
     if ( msgSetting )
-        $( button ).css({'background':'green'});
+        $( button ).addClass('button-on')
+
     $( button ).click( function ( e ) {
         if ( toggleSetting('msgs')==true ) {
           
             $( this ).text( 'Turn logging off' );
             addInfo( 'Logged turned on','success' );
-            $( this ).css({'background':'green'});
+            $( this ).addClass('button-on')
         } else {
        
             $( this ).text( 'Turn logging on' );
             addInfo( 'Logging turned on','warning' );
-            $( this ).css({'background':'#ccc'});
+            $( this ).removeClass('button-on')
         }
     });
     var li = buildli( button );
@@ -1996,7 +2016,8 @@ var css =
 +".msglist                      { max-height: 250px; overflow: auto; }"
 //ticket
 +".lastPrice                    { width: 175px; margin-left: 5px; margin-right: 5px; background: #bbb; float: left;padding:5px;font-size:1.6em;height:40px}"
-
+//buttons
++".button-on                    { background: green }"
 ;    
 
 function heartBeat () {
@@ -2021,4 +2042,3 @@ var help = ({
     */
 //14:17:11 *** matr1x062 (369479) [#440980537] bet 6.4 BTC at 49.5% and lost ***
 //14:17:14 *** matr1x062 (369479) [#440980672] bet 3.2 BTC at 49.5% and won 3.2 BTC ***
-

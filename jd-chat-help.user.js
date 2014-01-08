@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       just-dice.com chat helper
 // @namespace  http://use.i.E.your.homepage/
-// @version    0.17
+// @version    0.18
 // @description  script to improve just-dice.com's chat.  Adds colored names to easily track users, highlights, nicknames, more
 // @require     http://code.jquery.com/jquery-latest.min.js
 // @match      https://just-dice.com/*
@@ -26,6 +26,8 @@ var settingsMenu;
 var DEBUG = GM_getValue('debug');
 var cmdHistory;
 var socket;
+var temp = ({ }); // temp global settings
+var timer = 60000; // timer for heartbeat. 60sec (that's how often btc average updates)
 //GM_deleteValue('watchList');
 
 var defaultGroups = ({ 0:({'color':'#000','name':'default','background':'#FFFFFF'}), 
@@ -117,8 +119,16 @@ function Socket () {
             var exchanges;
             exchanges = inArr;
             //console.log("Exchanges ");
-
-            $('.lastPrice').html(currencies[curr]+" "+inArr['last']);
+            var previous = temp['last'], price = inArr['last'], bordercolor = "#777";
+            if ( previous ) {
+                if ( previous > price )
+                    bordercolor = 'red';
+                else
+                    bordercolor = 'green';
+            }
+            temp['last'] = price;
+            $('.lastPrice').html(currencies[curr]+" "+price);
+            $('.lastPrice').css({ 'border': '3px solid '+bordercolor });
             //console.log(Object.keys(exchanges));
             //$.each( exchanges, function ( k,v ) {
             //    //console.log(k);
@@ -131,9 +141,7 @@ function Socket () {
 // price ticker
 var div = buildTag( 'div', ({ 'addClass':'lastPrice buttons' }) );
 $( '.header' ).after( div );
-
-socket = new Socket();
-socket.connect('average');
+heartBeat();
 
 // turn off bet controls and setup address button
 function toggleBetControls () {
@@ -1094,7 +1102,7 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
         'html' : buildTag( 'option' ) }) );  
     $.each( currencies, function ( k, c ) {
         var option = buildTag( 'option', ({ 'html':k, 'value':k }) );
-        if ( c == myCurr )
+        if ( k == myCurr )
             $( option ).attr( 'selected','selected' );
 
         $( select ).append( option );
@@ -1775,9 +1783,16 @@ function readChatLog () {
 
 
 // this is the function we hijack to read new chat messages.  need to try get it working for add_chat
+//var oldScroll = scroll_to_bottom_of_chat();
+//console.log(oldScroll);
+var jdFuncs = ({ });
+jdFuncs ['scroll_to_bottom_of_chat'] = unsafeWindow.scroll_to_bottom_of_chat;
 unsafeWindow.scroll_to_bottom_of_chat = function () { 
-    chatscroll.stop().animate({scrollTop:chatscroll[0].scrollHeight},1e3);
-                                                        
+    //oldScroll.call();
+    eval("var jdfuncs_scroll_to_bottom_of_chat ="+jdFuncs['scroll_to_bottom_of_chat'] );
+    eval("jdfuncs_scroll_to_bottom_of_chat();");
+    //chatscroll.stop().animate({scrollTop:chatscroll[0].scrollHeight},1e3);
+    
     var chatLine = $("div#chat .chatline:last-child");
                                                         
     if ( !startTime ) {
@@ -1787,6 +1802,91 @@ unsafeWindow.scroll_to_bottom_of_chat = function () {
     else
         chatLine =  replaceChatLine( chatLine );
 } 
+/*
+jdFuncs ['add_chat'] = unsafeWindow.add_chat;
+unsafeWindow.add_chat = function ( date, txt, look) {
+    eval("var jdfuncs_add_chat ="+jdFuncs['add_chat'] );
+    eval("jdfuncs_add_chat("+date+","+txt+","+look+");");
+    console.log('test add chat');
+}
+// doesn't work
+/*
+ *     var jdfuncs_add_chat = unsafeWindow.add_chat;
+ *     jdfuncs_add_chat(date,txt,look);
+ */
+unsafeWindow.update_site_stats = function (site) {
+    var profit, wagered, lastPrice = temp['last'];
+    var curr = getSetting( 'currency' ) || "";
+    if ( curr )
+        curr = currencies[curr];
+    
+    
+    if ( lastPrice ) {
+        wagered = ((site.wagered*lastPrice).toFixed(2)).toString();
+        profit =  ((-site.profit*lastPrice).toFixed(2)).toString();
+    }
+    else {
+        profit = -site.profit.toFixed(8);
+        wagered = site.wagered.toFixed(8);
+    }
+    profit = curr+commaify(profit);
+    wagered = curr+commaify(wagered);
+    
+    $(".sbets").html(commaify(site.bets.toString()));
+    $("#swins").html(commaify(site.wins.toString()));
+    $("#slosses").html(commaify(site.losses.toString()));
+    $("#sluck").html((site.bets == 0 ? 100 : site.luck * 100 / site.bets).toFixed(luck_precision) + "%");
+    
+    $(".swagered").html(wagered);
+    $(".sprofitraw").html(profit);
+    
+    $(".sprofitpct").html((-site.profit * 100 / site.wagered).toFixed(6) + "%");
+    if (site.profit > 0) {
+        $(".sprofit_label").html("site is down:");
+        $(".sprofit").html(commaify(site.profit.toFixed(8)))
+    } else {
+        $(".sprofit_label").html("site is up:");
+        $(".sprofit").html(commaify((-site.profit).toFixed(8)))
+    }
+    // bankroll is updated in the init function after this function, and easier to do it this way than hook into that
+    if ( lastPrice ) 
+        setTimeout( function () { $('.bankroll').html( curr+commaify( ( parseInt($('.bankroll').html().replace(",",""))*lastPrice).toFixed(2).toString() ) ) }, 1 );
+
+}
+
+unsafeWindow.update_my_stats = function (bets, wins, losses, luck, wagered, profit) {
+    var lastPrice = temp['last'];
+    var curr = getSetting( 'currency' ) || "";
+    if ( curr )
+        curr = currencies[curr];
+    
+    if ( lastPrice ) {
+        wagered = curr+((wagered*lastPrice).toFixed(2)).toString();
+        profit = curr+((profit*lastPrice).toFixed(2)).toString();
+    }
+    $(".bets").html(commaify(bets));
+    $("#luck").html(luck);
+    $(".wagered").html(commaify(wagered));
+    $(".myprofit").html(commaify(profit));
+    if (wins !== null) {
+        $("#wins,#wins2").html(commaify(wins));
+        $("#losses,#losses2").html(commaify(losses))
+    }
+}
+unsafeWindow.update_investment = function (i, p, pft) {
+    var lastPrice = temp['last'];
+    var curr = getSetting( 'currency' ) || "";
+    if ( curr )
+        curr = currencies[curr];
+    
+    unsafeWindow.investment = i;
+    if ( lastPrice ) {
+        i = curr+((i*lastPrice).toFixed(2)).toString();
+    } else i = i.toFixed(8);
+    $(".investment").html(commaify(i));
+    $(".invest_pct").html(commaify((invest_pct = p).toFixed(6) + "%"));
+    if (pft !== null) $(".invest_pft").html(commaify(pft.toFixed(8)))
+}
 
 $(document).ready(function () {
         addGlobalStyle( css );
@@ -1888,6 +1988,13 @@ var css =
 
 ;    
 
+function heartBeat () {
+    if ( !socket )
+        socket = new Socket();
+    console.log('beat');
+    socket.connect('average');
+    setTimeout( heartBeat, timer || 60000 );
+}
 /*
 var help = ({
     "groupList" :       "To edit a group name or color, click on the name or the color.  Clicking on the id will show the group details.<br>"
@@ -1903,3 +2010,4 @@ var help = ({
     */
 //14:17:11 *** matr1x062 (369479) [#440980537] bet 6.4 BTC at 49.5% and lost ***
 //14:17:14 *** matr1x062 (369479) [#440980672] bet 3.2 BTC at 49.5% and won 3.2 BTC ***
+

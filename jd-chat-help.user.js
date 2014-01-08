@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       just-dice.com chat helper
 // @namespace  http://use.i.E.your.homepage/
-// @version    0.186
+// @version    0.187
 // @description  script to improve just-dice.com's chat.  Adds colored names to easily track users, highlights, nicknames, more
 // @require     http://code.jquery.com/jquery-latest.min.js
 // @match      https://just-dice.com/*
@@ -236,13 +236,13 @@ $('.chatbutton').after( $( button2 ) );
 $('.chatbutton').after( $( button ) );
 
 function getPasteAddress () {
-    var address = GM_getValue( 'address' );
+    var address = getSetting( 'pasteAddress' );
     
     return address || "paste address";
 }
 
 function savePasteAddress ( str ) {
-        var address = GM_setValue( 'address', str );
+    setSetting( 'pasteAddress', str );
 }
 
 // basic popup panel
@@ -419,10 +419,11 @@ function addGlobalStyle(newcss) {
     head.appendChild(style);
 }
 
+// dumps all saved values
 function dumpAllSaved () {
     var str = "";
     $.each( GM_listValues(), function ( key, value ) {
-        str += value+"="+GM_getValue( value )+"<br>";
+        str += value+"="+GM_getValue( value );
         });
     return str;
 }
@@ -1201,7 +1202,7 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
         var panel = new Panel();
         var li = document.createElement( 'li' );
         //$( li ).append( "<textarea class=watchListDump>"+dumpWatchListToString()+"</textarea>" );
-                $( li ).append( "<textarea class=watchListDump>"+dumpAllSaved()+"</textarea>" );        
+                $( li ).append( "<textarea class=watchListDump>"+dumpAllSaved(true)+"</textarea>" );        
         panel.setTitle( 'Export watchlist' );
                 panel.addClass('watchListPanel');
         panel.build( [ li ]);
@@ -1240,6 +1241,8 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
         panel.build( rows );   
         e.stopPropagation();
     });
+    var li = buildli( ({'html':button }) );
+    $( ul ).append( li );
     
     var button = document.createElement( 'button' );
     $( button ).html( 'Cat?' );
@@ -2038,7 +2041,13 @@ var help = ({
                                                 +" of memory, espically with large watchlists.  Turning this off also deletes the saved logs"],
         ["pasteAddress" ,       "This is the address used by the paste message button.  It doesn't have to be an address, it can be any text"],
         ["resetAll"             ,       "The reset all button resets all saved data" ],
+        ["currency"             ,       "The currency retrieved by bitcoinaverage.com.  Setting this to nothing stops calls to bitcoinaverage api"]
     ],
+    "chatButtons" : [
+        ["address"      ,       "A string that will be pasted into the chatbox (but not sent until you hit enter).  This can be changed in the watchlist settings                                                                       
+                                +" menu"],
+        ["mode"         ,       "Toggles bet/chat mode.  In chat mode, all the bet controls will be hidden (and chat will be bigger?)"],
+    ]
     */
 //14:17:11 *** matr1x062 (369479) [#440980537] bet 6.4 BTC at 49.5% and lost ***
 //14:17:14 *** matr1x062 (369479) [#440980672] bet 3.2 BTC at 49.5% and won 3.2 BTC ***

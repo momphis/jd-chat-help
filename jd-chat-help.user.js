@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       just-dice.com chat helper
 // @namespace  http://use.i.E.your.homepage/
-// @version    0.18
+// @version    0.185
 // @description  script to improve just-dice.com's chat.  Adds colored names to easily track users, highlights, nicknames, more
 // @require     http://code.jquery.com/jquery-latest.min.js
 // @match      https://just-dice.com/*
@@ -88,7 +88,9 @@ function Socket () {
     // the attempts and timeout nonsense is because GM_xmlhttpRequest synchronous
     // mode locks up the entire browser UI until it succeeds
        this.connect = function ( type ) {
-           var inurl, myCurr = getSetting( 'currency' ) || "USD";;
+           var inurl, myCurr = getSetting( 'currency' );
+           if ( !myCurr )
+               return;
            switch ( type ) {
                case "average" : 
                                 inurl = "https://api.bitcoinaverage.com/ticker/"+myCurr;
@@ -1110,6 +1112,11 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     $( select ).change( function ( e ) {
          console.log( $( '.currChange option:selected').val() );
          setSetting( 'currency', $( '.currChange option:selected').val() );
+         
+         // restart heartbeat to fetch new currency price
+         temp['last'] = false;
+         clearTimeout('heartBeat');
+         heartBeat();
     })
     $( ul ).append( buildTag( 'li', ({ 'html':select }) ) );
     
@@ -1882,10 +1889,14 @@ unsafeWindow.update_investment = function (i, p, pft) {
     unsafeWindow.investment = i;
     if ( lastPrice ) {
         i = curr+((i*lastPrice).toFixed(2)).toString();
-    } else i = i.toFixed(8);
+        pft = curr+((pft*lastPrice).toFixed(2)).toString();
+    } else {
+        i = i.toFixed(8);
+        pft = pft.toFixed(8);
+    }
     $(".investment").html(commaify(i));
     $(".invest_pct").html(commaify((invest_pct = p).toFixed(6) + "%"));
-    if (pft !== null) $(".invest_pft").html(commaify(pft.toFixed(8)))
+    if (pft !== null) $(".invest_pft").html(commaify(pft))
 }
 
 $(document).ready(function () {

@@ -14,6 +14,9 @@
 // @copyright  2014+, momphis.justdice@gmail.com
 // ==/UserScript==
 // Smoked lots of weed making this, so everything is all over the place.  Apologies to those who read on.
+// 16D5URtvvyMwnnG6kXUSJSd3ajx7WFYqBf for btc donations
+// DBjd7Hxv7gRk1pkJXLu17z4NF2f4TRx1Ed for doge donations
+
 var chatMode = false
 var loading;
 var setuptimer;
@@ -98,11 +101,13 @@ var currencies = ({
 "USD":"$",
 "ZAR":"R"});
 
+// Socket code
 function Socket () {
     var lastResponse;
     var attempts = 0;
-    // the attempts and timeout nonsense is because GM_xmlhttpRequest synchronous
-    // mode locks up the entire browser UI until it succeeds
+
+      // GM_xmlhttpRequest synchronous mode locks up the browser UI so all requests come here, async request, then pass to the handling function 
+      // wish sync mode worked :(
        this.connect = function ( type ) {
            var inurl, myCurr = getSetting( 'currency' );
            if ( !myCurr )
@@ -160,7 +165,7 @@ function Socket () {
 var div = buildTag( 'div', ({ 'addClass':'lastPrice buttons' }) );
 $( '.header' ).after( div );
 heartBeat();
-
+// End socket code (calls are in heartBeat() )
 
 // turn off bet controls and setup address button
 function toggleBetControls () {
@@ -200,6 +205,8 @@ function toggleBetControls () {
         $( ".chatstat>table").css({'float':'left'});
     }
 }
+
+// chat buttons
 
 // paste address button
 var button = document.createElement( 'button' );
@@ -264,8 +271,12 @@ function getPasteAddress () {
 function savePasteAddress ( str ) {
     setSetting( 'pasteAddress', str );
 }
+// end chat buttons/toggleBetControls
 
-// basic popup panel
+// ***********************
+// ** start popup funcs **
+// ***********************
+// basic popup panel.  Need to move more functions from the showUserDetails func
 function Panel () {
         this.titleStr = "";
     this.cssArr = ({ });
@@ -318,6 +329,9 @@ function Panel () {
     }       
         
 }
+// *********************
+// ** end popup funcs **
+// *********************
 
 // info popup for status messages ( x saved, x didn't save etc etc)
 function addInfo ( str, type ) {
@@ -388,6 +402,25 @@ String.prototype.trunc =
          s_ = useWordBoundary && toLong ? s_.substr(0,s_.lastIndexOf(' ')) : s_;
          return  toLong ? s_ + '&hellip;' : s_;
       };
+
+function obslice(obj, start, end) {
+
+    var sliced = {};
+    var i = 0;
+    for (var k in obj) {
+        if (i >= start && i < end)
+            sliced[k] = obj[k];
+
+        i++;
+    }
+
+    return sliced;
+}
+
+// **********************
+// ** start time funcs **
+// **********************
+// Date.format('hh:mm:ss')
 Date.prototype.format = function(format) //author: meizz
 {
   var o = {
@@ -408,14 +441,14 @@ Date.prototype.format = function(format) //author: meizz
         ("00"+ o[k]).substr((""+ o[k]).length));
   return format;
 }
-//date.format( 'yy-MM-dd hh:mm:ss' );
+
 function getTime (instr) {
 
     if (  instr )
         return new Date(instr);
     return new Date();
 }
-
+// converts 11:11:11 to date object.  Don't need this if we hook into addChat 
 function jdTime ( timeStr ) {
 
     var jd = timeStr.split(":");
@@ -426,6 +459,9 @@ function jdTime ( timeStr ) {
   
     return time;
 }
+// ********************
+// ** end time funcs **
+// ********************
 
 // injects new css
 // main css is at the bottom of the file
@@ -448,7 +484,7 @@ function dumpAllSaved () {
     return str;
 }
 
-
+// unused
 function dumpWatchListToString () {
     var dump = ({ });
     dump['watchList'] = watchList;
@@ -459,6 +495,8 @@ function dumpWatchListToString () {
     return dump;
 }
 
+// used in import watchList button
+// should just do watchList/watchGroups, or settings as well?
 function importWatchListFromString ( str ) {
 
     if ( !str.length ) {
@@ -485,6 +523,7 @@ function importWatchListFromString ( str ) {
     addInfo( 'Successfully imported watchList', 'success' );
 }
 
+// resets everything.  Used in reset all button
 function resetAll () {
         $.each( GM_listValues(), function ( key, value ) {
         console.log( 'deleting '+value );
@@ -495,12 +534,16 @@ function resetAll () {
     readChatLog();
 }
 
+// unused
 function resetWatchList () {
     watchList = ({ });
     console.log( 'Watchlist reset' );
         saveWatchList();
 }
 
+// **************************
+// ** start settings funcs **
+// **************************
 // basic settings for things like paste address/show msgs etc
 function loadSettings () { 
     //GM_deleteValue('settings');
@@ -525,7 +568,6 @@ if ( DEBUG )
   return true;
 }
 
-
 function toggleSetting ( setting ) {
     var current = getSetting(setting);
     if ( current )
@@ -537,7 +579,13 @@ if ( DEBUG )
     console.log('toggled '+setting+" = "+current );
     return current;
 }
+// ************************
+// ** end settings funcs **
+// ************************
 
+// ***************************
+// ** start watchList funcs **
+// ***************************
 function saveWatchList ( ) {
     var tmpList = ({ });
     
@@ -552,25 +600,6 @@ function saveWatchList ( ) {
     console.log( 'saving watchlist' );
 }
 
-function getUser ( id ) {
-    if ( membersList [id] )
-        return membersList[id];
-    if ( watchList[id] )
-        return watchList[id];
-    return false;
-}
-
-function getGroupColors ( group ) {
-    var tmp = ({ });
-    
-    if ( !group || !watchGroups[group] )
-        return false;
-    
-    tmp['color'] = watchGroups[group]['color'];
-    tmp['background'] = watchGroups[group]['background']
-    return tmp;
-}
-
 function loadWatchList ( ) {
 
     watchList = GM_getValue( 'watchList' );
@@ -582,44 +611,6 @@ function loadWatchList ( ) {
     return watchList;
 }
 
-
-function getGroupForUser ( userid ) {
-    if ( !watchList[userid] || !watchList[userid]['group'] )
-        return defaultGroups[0];
-    return watchList[ userid ][ 'group' ];
-}
-
-function addGroupForUser ( userid, group ) {
-    if ( !watchList[userid] )
-        watchList[userid] = ({ });
-    watchList[userid]['group'] = group;
-    saveWatchList();
-}
-
-function getUsersForGroup ( group ) {
-    if ( !group || !watchGroups[group] )
-        return false;
-    var usersArr = [ ];
-    
-    $.each( watchList, function( id, data ) {
-
-        if ( data['group'] && data['group'] == group ) {
-
-                usersArr.push( id );
-        }
-        });
-    
-    return usersArr;
-}
-
-function getGroupAmount () {
-    return Object.keys(watchGroups).length;
-}
-function getGroup (id) {
-    return watchGroups[id];
-}
-
-                              
 function getWatchListUser ( userid, type ) {
    var types = [ ];
     var tmp = ({ });
@@ -667,6 +658,22 @@ function saveWatchListUser ( userid, data ) {
 
 }
 
+// *************************
+// ** end watchList funcs **
+// *************************
+
+// **********************
+// ** start user funcs **
+// **********************
+// user funcs.  These should be deleted and moved to watchList funcs 
+function getUser ( id ) {
+    if ( membersList [id] )
+        return membersList[id];
+    if ( watchList[id] )
+        return watchList[id];
+    return false;
+}
+
 function deleteUserDetails ( userid ) {
     watchList[userid] = false; 
     saveWatchList();
@@ -687,6 +694,73 @@ function dumpUser ( userid ) {
     watch = membersList[userid]
         return watch;
     return ({ });
+}
+
+
+// this one does get used
+function addUserToMembersList ( id, data, ul ) {
+        if ( data && !$('.membersList_'+id).html() ) {
+        var name = data['name'].trunc(12);       
+      
+        var li = buildli( ({ 'css': ({'padding':'0px'}), 'addClass':getGroupClassForUser( id )+" membersList_"+id }) );
+        $( li ).html( " (" );
+        $( li ).append( idLink(id,false) );
+        $( li ).append( ") &lt;"+name+"&gt " );
+        if ( data['names'] )
+                $( li ).append("*");
+        $( ul ).append( li );
+       // if ( DEBUG ) 
+    //      console.log('adding '+id+' to membersList');
+            
+        } else {
+        //if ( DEBUG )
+                //console.log('NOT adding '+id+' to membersList');
+    }
+}
+// don't we already have this with the memberslist stuff?
+function rebuildUserList () { }
+// ********************
+// ** end user funcs **
+// ********************
+
+// ***********************
+// ** start group funcs **
+// ***********************
+// some unused stuff.  Some stuff doing pretty much the same thing.  Needs clearing up
+function getGroupForUser ( userid ) {
+    if ( !watchList[userid] || !watchList[userid]['group'] )
+        return defaultGroups[0];
+    return watchList[ userid ][ 'group' ];
+}
+
+function addGroupForUser ( userid, group ) {
+    if ( !watchList[userid] )
+        watchList[userid] = ({ });
+    watchList[userid]['group'] = group;
+    saveWatchList();
+}
+
+function getUsersForGroup ( group ) {
+    if ( !group || !watchGroups[group] )
+        return false;
+    var usersArr = [ ];
+    
+    $.each( watchList, function( id, data ) {
+
+        if ( data['group'] && data['group'] == group ) {
+
+                usersArr.push( id );
+        }
+        });
+    
+    return usersArr;
+}
+
+function getGroupAmount () {
+    return Object.keys(watchGroups).length;
+}
+function getGroup (id) {
+    return watchGroups[id];
 }
 
 function getGroupClassForUser ( userid ) {
@@ -766,25 +840,27 @@ function loadGroups () {
     return groups;
 }
 
-
-
-
-function rebuildUserList () { }
-
-
-function obslice(obj, start, end) {
-
-    var sliced = {};
-    var i = 0;
-    for (var k in obj) {
-        if (i >= start && i < end)
-            sliced[k] = obj[k];
-
-        i++;
-    }
-
-    return sliced;
+function getGroupColors ( group ) {
+    var tmp = ({ });
+    
+    if ( !group || !watchGroups[group] )
+        return false;
+    
+    tmp['color'] = watchGroups[group]['color'];
+    tmp['background'] = watchGroups[group]['background']
+    return tmp;
 }
+// *********************
+// ** end group funcs **
+// *********************
+
+
+
+
+// **************************
+// ** start buildTag funcs **
+// **************************
+// shorthand funcs for creating elements
 // [0].tagName;
 // if is string or has children then that = html
 function buildli ( buildData ) {
@@ -828,16 +904,23 @@ function buildTag ( type, buildData ) {
     
     return tag;
 }
+// ************************
+// ** end buildTag funcs **
+// ************************
 
+// todo.  group amount, watchList amount, size in bytes, memory used (if possible)
 function writeStats () { }
     
+// ***********************************
+// ** start watchListSettings funcs **
+// ***********************************
+// need to add more stuff from rebuild rebuildWatchListSettings here
 function settingsMenuObj () {
     this.unsavedGroups;
     
     this.setup = function () {
         this.unsavedGroups = watchGroups;    
-    }
-    
+    }    
    
     this.addNewGroup = function () {
         var id = Object.keys(this.unsavedGroups).length;
@@ -970,6 +1053,7 @@ function settingsMenuObj () {
     }
 }
 
+// rebuilds watchList settings tab when a change is made
 function rebuildWatchListSettings ( infoMsg, limits ) {
         var div = $( '.watchListSettings' );
     $( div ).html( '<ul><li><h2>Settings</h2></li></ul>' );
@@ -1275,8 +1359,14 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     $( ul ).append( li );
     $( div ).append( ul );
 }
+// *********************************
+// ** end watchListSettings funcs **
+// *********************************
 
-
+// ****************************
+// ** start user popup funcs **
+// ****************************
+// popup for all user details
 function showUserDetails ( id ) {
     var rows = [ ];
     var watch = dumpUser( id );
@@ -1446,7 +1536,7 @@ function handleUserPopup ( type, id, pos ) {
 }
 
 //buildUserPopup ( anchor, id )
-//create popup menu for the clicked id
+// create popup menu for the clicked id
 // anchor is the object we want to popup next to
 function buildUserPopup ( anchor, id ) {
         var name, rows = [ ];
@@ -1495,29 +1585,15 @@ function buildUserPopup ( anchor, id ) {
     panel.build( rows );
     console.log(panel);
 }
+// **************************
+// ** end user popup funcs **
+// **************************
 
-/*
- *     // 14:17:11 *** matr1x062 (369479) [#440980537] bet 6.4 BTC at 49.5% and lost ***
- * MATCH 1
-    1.      
-    `14:17:11`
-    2.      
-    `matr1x062`
-    3.      
-    `369479`
-    4.      
-    `440980537`
-    5.      
-    `6.4`
-    6.      
-    `BTC`
-    7.      
-    `49.5`
-    8.      
-    `lost` or `won`
-    9.      
-    `***`  or `3.2 BTC ***`
-    */
+// **************************
+// ** start chatline funcs **
+// **************************
+// called when a bet that shows in chat comes up
+// just dumps to console atm
 function addBet ( result ) {
     var data = ({ });
     console.log('matched something');
@@ -1669,26 +1745,8 @@ function replaceChatLine ( lineObj ) {
     $( lineObj ).attr({ 'dataDump' : JSON.stringify(data) });
 }
 
-function addUserToMembersList ( id, data, ul ) {
-        if ( data && !$('.membersList_'+id).html() ) {
-        var name = data['name'].trunc(12);       
-      
-        var li = buildli( ({ 'css': ({'padding':'0px'}), 'addClass':getGroupClassForUser( id )+" membersList_"+id }) );
-        $( li ).html( " (" );
-        $( li ).append( idLink(id,false) );
-        $( li ).append( ") &lt;"+name+"&gt " );
-        if ( data['names'] )
-                $( li ).append("*");
-        $( ul ).append( li );
-       // if ( DEBUG ) 
-    //      console.log('adding '+id+' to membersList');
-            
-        } else {
-        //if ( DEBUG )
-                //console.log('NOT adding '+id+' to membersList');
-    }
-}
-   
+// the main startup/reload func.  Should unset any temp vars releated to chat/memberslist
+// and reload everything
 function readChatLog () {
     // reset everything
         membersList = [ ];
@@ -1828,9 +1886,14 @@ function readChatLog () {
     updateNotifications();
     loading = false;
 }
+// ************************
+// ** end chatline funcs **
+// ************************
 
-
-
+// **************************
+// ** start funcHook funcs **
+// **************************
+// these all need more work.  Has to be a better way to do this
 // this is the function we hijack to read new chat messages.  need to try get it working for add_chat
 //var oldScroll = scroll_to_bottom_of_chat();
 //console.log(oldScroll);
@@ -1940,7 +2003,12 @@ unsafeWindow.update_investment = function (i, p, pft) {
     $(".invest_pct").html(commaify((invest_pct = p).toFixed(6) + "%"));
     if (pft !== null) $(".invest_pft").html(commaify(pft))
 }
+// ************************
+// ** end funcHook funcs **
+// ************************
 
+// pageload
+// not much we can do here because we have to wait for just-dice to load before we are really ready
 $(document).ready(function () {
         addGlobalStyle( css );
          loadWatchList();
@@ -1948,10 +2016,11 @@ $(document).ready(function () {
 
     $( 'body').click( function ( e ) {
         
-
-        $('.watchListDetails').hide();
+        // what to remove?
+        $('.watchListDetails').remove();
         $('.watchListPanel').remove();
 
+        // cmdHistory setup.  Doesn't work right atm
         $('.chatinput').keydown( function ( e ) {
             switch ( e.keyCode ) {
                 // 13 = return/enter
@@ -1994,6 +2063,8 @@ $(document).ready(function () {
     
 });
 
+
+// this all gets injected 
 var css = 
 ".watchMenuHeader  {color:#222222;background:#cccccc;border-bottom:1px solid #000000 } "
 +".watchMenuUser    {background:#222222;color:#cccccc }"
@@ -2042,6 +2113,7 @@ var css =
 +".button-on                    { background: green }"
 ;    
 
+// sets up the socket to check bitcoinaverage price every 60 seconds (or not if no currency selected)
 function heartBeat () {
     if ( !socket )
         socket = new Socket();

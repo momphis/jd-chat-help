@@ -1278,22 +1278,29 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
 
 
 function showUserDetails ( id ) {
-        var rows = [ ];
+    var rows = [ ];
     var watch = dumpUser( id );
     console.log('dumpuser '+id);
     console.log(watch);
-    var name = watch['name'];
-   
-
+    var name = watch['name'], groupSpan;
     var toSet = ({ "Name":name,"id":id });
+    
+    var group = getGroupClassForUser(id);
+    if ( group ) { // for watchlist users in default group
+        groupSpan = buildTag( 'span', ({ 'html':group.replace("watchList_","") }) )
+        $( groupSpan ).addClass(group);
+        toSet['group'] = groupSpan;
+    }
+
     $.each( toSet, function( key, value ) {
-        var li = buildli( "<b>"+key+"</b>: "+value );
+        var li = buildli( "<b>"+key+"</b>: ");
+        $( li ).append( value );
         rows.push( li );         
     });
     
     // get rid of this once we're clear on what we want to show here
     $.each( watch, function( key, value ) {
-        if ( key != 'msgs' && key != 'name' ) {
+        if ( key != 'msgs' && key != 'name' && key != 'group' ) {
                 var li = buildli( key+"="+JSON.stringify(value) );
                 rows.push( li );
         }

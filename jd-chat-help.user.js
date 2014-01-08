@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       just-dice.com chat helper
 // @namespace  http://use.i.E.your.homepage/
-// @version    0.16
+// @version    0.17
 // @description  script to improve just-dice.com's chat.  Adds colored names to easily track users, highlights, nicknames, more
 // @require     http://code.jquery.com/jquery-latest.min.js
 // @match      https://just-dice.com/*
@@ -10,6 +10,7 @@
 // @grant               GM_getValue
 // @grant       GM_listValues
 // @grant       GM_deleteValue
+// @grant       GM_xmlhttpRequest
 // @copyright  2014+, momphis.justdice@gmail.com
 // ==/UserScript==
 // Smoked lots of weed making this, so everything is all over the place.  Apologies to those who read on.
@@ -23,6 +24,8 @@ var startTime;
 var unreadNotifications = ({ });
 var settingsMenu;
 var DEBUG = GM_getValue('debug');
+var cmdHistory;
+var socket;
 //GM_deleteValue('watchList');
 
 var defaultGroups = ({ 0:({'color':'#000','name':'default','background':'#FFFFFF'}), 
@@ -56,6 +59,81 @@ if ( DEBUG == true ) {
         console.log('settings');
         console.log( settings );
 }
+
+var currencies = ({
+"AUD":"$",
+"BRL":"R$",
+"CAD":"$",
+"CHF":"CHR",
+"CNY":"¥",
+"CZK":"Kč",
+"EUR":"€",
+"GBP":"£",
+"ILS":"₪",
+"JPY":"¥",
+"NOK":"kr",
+"NZD":"$",
+"PLN":"zł",
+"RUB":"руб",
+"SEK":"kr",
+"SGD":"$",
+"USD":"$",
+"ZAR":"R"});
+
+function Socket () {
+    var lastResponse;
+    var attempts = 0;
+    // the attempts and timeout nonsense is because GM_xmlhttpRequest synchronous
+    // mode locks up the entire browser UI until it succeeds
+       this.connect = function ( type ) {
+           var inurl, myCurr = getSetting( 'currency' ) || "USD";;
+           switch ( type ) {
+               case "average" : 
+                                inurl = "https://api.bitcoinaverage.com/ticker/"+myCurr;
+
+                                break;
+               default        : inurl = "https://api.bitcoinaverage.com/all";
+                                break;
+           }
+            GM_xmlhttpRequest( {
+                method: "GET",
+                url: inurl,
+                onload: function( resp ) { console.log("Socket success"); console.log(resp); 
+                    console.log(this);
+                    resp = JSON.parse(resp['responseText']);
+                    switch ( type ) {
+                        case "average" : socket.setBTCAverage(myCurr,resp);
+                                        break;
+                        default        :        socket.setBTCAverage(myCurr,resp);
+                                            break;
+                    }
+                },
+                onerror: function( resp ) { console.log("Socket error"); console.log(resp); }
+            } );
+        }
+        
+        this.setBTCAverage = function ( curr, inArr ) {
+            var out = "var exchanges = [";
+            var exchanges;
+            exchanges = inArr;
+            //console.log("Exchanges ");
+
+            $('.lastPrice').html(currencies[curr]+" "+inArr['last']);
+            //console.log(Object.keys(exchanges));
+            //$.each( exchanges, function ( k,v ) {
+            //    //console.log(k);
+            //    out += "\""+k+"\",";
+            //});
+            //out += "];";
+            //console.log( out );            
+        }
+}
+// price ticker
+var div = buildTag( 'div', ({ 'addClass':'lastPrice buttons' }) );
+$( '.header' ).after( div );
+
+socket = new Socket();
+socket.connect('average');
 
 // turn off bet controls and setup address button
 function toggleBetControls () {
@@ -487,9 +565,7 @@ function getUsersForGroup ( group ) {
     $.each( watchList, function( id, data ) {
 
         if ( data['group'] && data['group'] == group ) {
-                                console.log(id);
-                        console.log(data['group']);
-                        console.log(group);
+
                 usersArr.push( id );
         }
         });
@@ -549,7 +625,7 @@ function saveWatchListUser ( userid, data ) {
 
     }
     saveWatchList();
-    console.log(watchList[userid]);
+
 }
 
 function deleteUserDetails ( userid ) {
@@ -645,8 +721,7 @@ function loadGroups () {
         cssStr += ".watchList_"+groups[x]['name']+" {color:"+groups[x]['color']+";background:"+groups[x]['background']+"}";
     }
     addGlobalStyle( cssStr );
-    console.log(cssStr);
-    console.log('loaded groups');    
+    
     watchGroups = groups;
     
     return groups;
@@ -709,6 +784,8 @@ function buildTag ( type, buildData ) {
         $( tag ).html( buildData['html'] );
     if ( buildData['text'] )
         $( tag ).text( buildData['text'] );
+    if ( buildData['value'] )
+        $( tag ).val( buildData['value'] );
     
     return tag;
 }
@@ -728,7 +805,7 @@ function settingsMenuObj () {
         this.unsavedGroups[id] = ({ });
         var li = this.buildGroupLine( id, this.unsavedGroups[id], true );
         $('.watchListGroups').children().last().before( li );
-        console.log(id);
+
     }
     
     this.save = function (type) {
@@ -805,7 +882,7 @@ function settingsMenuObj () {
 
         // on keyup (we'll assume that's an edit), show the save button
         $( input ).keyup( function ( e ) {
-            console.log(this);
+
             if ( !$( '.watchListSettingsSave').is(":visible") )
                 $( '.watchListSettingsSave').show();
             if ( !settingsMenu.unsavedGroups[ $(this).attr('id') ] )
@@ -1002,8 +1079,33 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     // Now the misc settings
     ul = buildTag( 'ul', ({ 'addClass':'watchListMisc','html':'<li><h3>Misc</h3></li>' }) );
     
-    var msgSetting = getSetting('msgs');
+    address = getPasteAddress();
+    //addresspaste input
+    var input = buildTag( 'input', ({ 'addClass':'editAddressPaste', 'css':({'width':'180px' }) }) );
+    $( input ).val( address );
+    $( input ).keyup( function ( e ) {
+       savePasteAddress( $( this ).val() ); 
+    });
+    var li = buildli( ({'html':input }) );
+    $( ul ).append( li );
 
+    var myCurr = getSetting( 'currency' );
+    var select = buildTag( 'select', ({ 'addClass':'currChange', 
+        'html' : buildTag( 'option' ) }) );  
+    $.each( currencies, function ( k, c ) {
+        var option = buildTag( 'option', ({ 'html':k, 'value':k }) );
+        if ( c == myCurr )
+            $( option ).attr( 'selected','selected' );
+
+        $( select ).append( option );
+    });
+    $( select ).change( function ( e ) {
+         console.log( $( '.currChange option:selected').val() );
+         setSetting( 'currency', $( '.currChange option:selected').val() );
+    })
+    $( ul ).append( buildTag( 'li', ({ 'html':select }) ) );
+    
+    var msgSetting = getSetting('msgs');
     var button = document.createElement( 'button' );
     $( button ).text( msgSetting ? 'Turn logging off' : 'Turn logging on' );
     if ( msgSetting )
@@ -1024,15 +1126,6 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     var li = buildli( button );
     $( ul ).append( li );
     
-    address = getPasteAddress();
-    //addresspaste input
-    var input = buildTag( 'input', ({ 'addClass':'editAddressPaste', 'css':({'width':'180px' }) }) );
-    $( input ).val( address );
-    $( input ).keyup( function ( e ) {
-       savePasteAddress( $( this ).val() ); 
-    });
-    var li = buildli( ({'html':input }) );
-        $( ul ).append( li );
 
     // debug button
     var button = document.createElement( 'button' );
@@ -1112,6 +1205,22 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
         panel.build( rows );   
         e.stopPropagation();
     });
+    
+    var button = document.createElement( 'button' );
+    $( button ).html( 'Cat?' );
+    $( button ).click( function ( e ) { 
+        var panel = new Panel();
+        var li = document.createElement( 'li' );
+        //$( li ).append( "<textarea class=watchListDump>"+dumpWatchListToString()+"</textarea>" );
+        $( li ).append( "<img src=http://thecatapi.com/api/images/get?format=src&type=gif>" );        
+        panel.setTitle( 'this is cat' );
+        panel.addClass('watchListPanel');
+        panel.build( [ li ]);
+        e.stopPropagation();
+    });
+    var li = buildli( ({'html':button }) );
+    $( ul ).append( li );
+    
     var li = buildli( button );
     $( ul ).append( li );
     $( div ).append( ul );
@@ -1141,13 +1250,13 @@ function showUserDetails ( id ) {
     });
 
     var msgs = getUser(id)['msgs'];
-    var smsgs = getWatchListUser( id, 'msgs' );  
+    var smsgs = getWatchListUser( id )['msgs'];  
     console.log('smsm');
     console.log(smsgs);
     console.log('smsms end');
     if ( msgs ) {
         var idstr = "("+id+") &lt;"+name+"&gt;";
-        var li = buildli( 'Messages this session: ' );
+        var li = buildli( '<b>Messages this session:</b> ' );
         rows.push( li );
         
         var msglist = buildTag( 'ul', ({ 'addClass':'msglist' }) );
@@ -1164,14 +1273,14 @@ function showUserDetails ( id ) {
     
     if ( smsgs ) {
         var idstr = "("+id+") &lt;"+name+"&gt;";
-        var li = buildli( 'Message history: ' );
+        var li = buildli( '<b>Message history:</b> ' );
         rows.push( li );
   
         var msglist = buildTag( 'ul', ({ 'addClass':'msglist' }) );
-console.log(smsgs);
+
         $.each( smsgs, function( key, value ) {
 //date.format( 'yy-MM-dd hh:mm:ss' );
-            console.log(key);
+
             var time = getTime(key);
             key = time.format('hh:mm:ss');
             var li = buildli( key+" "+idstr+" "+value );
@@ -1330,22 +1439,6 @@ function buildUserPopup ( anchor, id ) {
     console.log(panel);
 }
 
-// replaceChatLine ( lineObj );
-// Reads and replaces this chat line with the userscript version
-function replaceChatLine ( lineObj ) {
-    var line = $( lineObj ).html();
-        var checked = false;
-    // match 11:11:11 (1111) <abc> hello world?
-    var matchStr = /^([0-9\:]+)+\s\((.*?)\)\s&lt;(.*?)&gt;\s(.*)$/; 
-
-    // ^([0-9\:]+)+\s\*\*\*\s(.*?)\s\((.*?)\)\s\[\#(.*?)\] bet (.*?) (.*?) at (.*?)% and (.*?) \*\*\*$
-    // matches
-    // 14:17:11 *** matr1x062 (369479) [#440980537] bet 6.4 BTC at 49.5% and lost ***
-    //
-    //^([0-9\:]+)+\s\*\*\*\s(.*?)\s\((.*?)\)\s\[\#(.*?)\] bet (.*?) (.*?) at (.*?)% and (.*?) (.*?)$
-    // matches above and 
-    //
-    // 14:17:14 *** matr1x062 (369479) [#440980672] bet 3.2 BTC at 49.5% and won 3.2 BTC ***
 /*
  *     // 14:17:11 *** matr1x062 (369479) [#440980537] bet 6.4 BTC at 49.5% and lost ***
  * MATCH 1
@@ -1367,7 +1460,36 @@ function replaceChatLine ( lineObj ) {
     `lost` or `won`
     9.      
     `***`  or `3.2 BTC ***`
-*/
+    */
+function addBet ( result ) {
+    var data = ({ });
+    console.log('matched something');
+    console.log(result);
+    data['timestamp']   = result[0]; // 14:17:11
+    data['name']        = result[1]; // momphis
+    data['id']          = result[2]; // 455432
+    data['betid']       = result[3]; // 4493895858
+    data['betAmount']   = result[4]; // 5.5
+    data['currency']    = result[5]; // BTC - should be btc. don't think this works on just-doge
+    data['chance']      = result[6]; // 49.5 (%)
+    data['result']      = result[7]; // 'lose' or 'won'
+    
+    if ( data['result'] == 'won' ) { 
+        var matchStr = /^([0-9.]+)\sBTC\s\*\*\*$/; // 3.2 BTC ***
+        if ( result )
+            data['winnings'] = result[0];
+    }
+    console.log(data);
+}
+        
+// replaceChatLine ( lineObj );
+// Reads and replaces this chat line with the userscript version
+function replaceChatLine ( lineObj ) {
+    var line = $( lineObj ).html();
+        var checked = false;
+    // match 11:11:11 (1111) <abc> hello world?
+    var matchStr = /^([0-9\:]+)+\s\((.*?)\)\s&lt;(.*?)&gt;\s(.*)$/; 
+
     // we already checked this one
     // only thing that could change is the group?
     // for now, check it again just in case something else changes I forgot about
@@ -1388,8 +1510,20 @@ function replaceChatLine ( lineObj ) {
     
         // does it match?  system messages, big bet ones don't.
         // if not, we don't want to touch it
-        if ( !result ) 
-                return;
+        if ( !result ) {
+            // 14:17:14 *** matr1x062 (369479) [#440980672] bet 3.2 BTC at 49.5% and won 3.2 BTC ***
+            // 14:17:11 *** matr1x062 (369479) [#440980537] bet 6.4 BTC at 49.5% and lost ***
+            matchStr = /^([0-9\:]+)+\s\*\*\*\s(.*?)\s\((.*?)\)\s\[\#(.*?)\] bet (.*?) (.*?) at (.*?)% and (.*?) (.*?)$/;
+            line = lineObj.text(); // should do one or the other, not both
+            result = line.match( matchStr )
+            console.log('trying to match a bet');
+           // console.log(result);
+            console.log(line);
+           // console.log(matchStr);
+            if ( result )
+                addBet(result);
+            return;
+        }
     
         // 1 = timestamp, 2 = id, 3 = username, 4 = chat line     
         data['id'] = result[2];
@@ -1570,17 +1704,14 @@ function readChatLog () {
         var msgs = data['msgs'];
 
         var dtUser = getWatchListUser( id, ['msgs','name'] );
-       console.log(dtUser);
+
 
         if ( dtUser && getSetting('msgs') && data['msgs'] ) {
             dtUser = dtUser.msgs;
             if ( !dtUser )
                 dtUser = ({ });
             //dUser
-            console.log('dtUser');
-       console.log(dtUser);  
-       console.log('data');
-        console.log(data);  
+   
         console.log(id);
             $.each( data['msgs'], function ( k, v ) {
                 dtUser[k]= v;
@@ -1649,8 +1780,10 @@ unsafeWindow.scroll_to_bottom_of_chat = function () {
                                                         
     var chatLine = $("div#chat .chatline:last-child");
                                                         
-    if ( !startTime ) 
+    if ( !startTime ) {
+
                 readChatLog();
+    }
     else
         chatLine =  replaceChatLine( chatLine );
 } 
@@ -1658,13 +1791,52 @@ unsafeWindow.scroll_to_bottom_of_chat = function () {
 $(document).ready(function () {
         addGlobalStyle( css );
          loadWatchList();
+    
+
     $( 'body').click( function ( e ) {
         
 
-     $('.watchListDetails').hide();
-        
-     $('.watchListPanel').remove();
+        $('.watchListDetails').hide();
+        $('.watchListPanel').remove();
 
+        $('.chatinput').keydown( function ( e ) {
+            switch ( e.keyCode ) {
+                // 13 = return/enter
+                case 13 :       if ( !cmdHistory )   
+                                    cmdHistory = ({ 'cmds': ({ }) });
+                                
+                                cmdHistory[ 'cmds' ] [Object.keys( cmdHistory['cmds'] ).length ] = $('.chatinput').val(); 
+                                cmdHistory[ 'position' ] = Object.keys( cmdHistory['cmds'] ).length;
+                                break;
+                // 38 = up arrow
+                case 38 :       
+                                if ( !cmdHistory ) 
+                                    return;
+                                var position = cmdHistory['position'];
+                                if ( !position )
+                                    position = cmdHistory['cmds'].length();
+                                if ( position == 0 )
+                                    $('.chatinput').val("");
+                                $('.chatinput').val( cmdHistory[ 'cmds' ][ position ] );
+                                position--;
+                                if ( position > -1 )
+                                    cmdHistory['position'] = position;
+                                break;
+                // 40 = down arrow
+                case 40 :       if ( !cmdHistory )
+                                    return;
+                                var position = cmdHistory['position'];
+                                $('.chatinput').val( cmdHistory[ 'cmds' ][ position ] );
+                                if ( position == 0 )
+                                    $('.chatinput').val("");
+                                position++;
+                                if ( position < Object.keys( cmdHistory['cmds'] ).length )
+                                    cmdHistory['position'] = position;
+                                break;
+                default :       break;
+            }
+            console.log( e.keyCode );
+        });
     });
     
 });
@@ -1711,6 +1883,8 @@ var css =
 +".chatModeButton       { width: 95px; }"
 // user details
 +".msglist                      { max-height: 250px; overflow: auto; }"
+//ticket
++".lastPrice                    { width: 175px; margin-left: 5px; margin-right: 5px; background: #bbb; float: left;padding:5px;font-size:1.6em;height:40px}"
 
 ;    
 

@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name       just-dice.com chat helper
 // @namespace  http://use.i.E.your.homepage/
-// @version    0.188
+// @version    0.19
 // @description  script to improve just-dice.com's chat.  Adds colored names to easily track users, highlights, nicknames, more
 // @require     http://code.jquery.com/jquery-latest.min.js
 // @match      https://just-dice.com/*
+
 // @grant               unsafeWindow
 // @grant               GM_setValue
 // @grant               GM_getValue
@@ -646,7 +647,7 @@ function saveWatchListUser ( userid, data ) {
               tmp.push( value );
            else
            if ( tmp && typeof value == 'object' ) 
-                      jQuery.extend(tmp, value);               
+                      jQuery.extend(tmp, $(value));               
            else
               tmp = value;
 
@@ -1647,7 +1648,7 @@ function replaceChatLine ( lineObj ) {
             // 14:17:14 *** matr1x062 (369479) [#440980672] bet 3.2 BTC at 49.5% and won 3.2 BTC ***
             // 14:17:11 *** matr1x062 (369479) [#440980537] bet 6.4 BTC at 49.5% and lost ***
             matchStr = /^([0-9\:]+)+\s\*\*\*\s(.*?)\s\((.*?)\)\s\[\#(.*?)\] bet (.*?) (.*?) at (.*?)% and (.*?) (.*?)$/;
-            line = lineObj.text(); // should do one or the other, not both
+            line = $( lineObj ).text(); // should do one or the other, not both
             result = line.match( matchStr )
             console.log('trying to match a bet');
            // console.log(result);

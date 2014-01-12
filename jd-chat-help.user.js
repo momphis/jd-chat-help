@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       just-dice.com chat helper
 // @namespace  http://use.i.E.your.homepage/
-// @version    0.19
+// @version    0.191
 // @description  script to improve just-dice.com's chat.  Adds colored names to easily track users, highlights, nicknames, more
 // @require     http://code.jquery.com/jquery-latest.min.js
 // @match      https://just-dice.com/*
@@ -1359,6 +1359,7 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     var li = buildli( button );
     $( ul ).append( li );
     $( div ).append( ul );
+    unsafeWindow.scroll_to_bottom_of_chat();
 }
 // *********************************
 // ** end watchListSettings funcs **

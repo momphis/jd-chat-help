@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       just-dice.com chat helper
 // @namespace  http://use.i.E.your.homepage/
-// @version    0.191
+// @version    0.192
 // @description  script to improve just-dice.com's chat.  Adds colored names to easily track users, highlights, nicknames, more
 // @require     http://code.jquery.com/jquery-latest.min.js
 // @match      https://just-dice.com/*
@@ -1946,13 +1946,13 @@ unsafeWindow.update_site_stats = function (site) {
     profit = curr+commaify(profit);
     wagered = curr+commaify(wagered);
     
-    $(".sbets").html(commaify(site.bets.toString()));
+    $(".sbets").html( "<a href='http://bitcoinproject.net/just-dice-casino/just-dice-charts/bets-total-chart'>"+commaify(site.bets.toString())+"</a>");
     $("#swins").html(commaify(site.wins.toString()));
     $("#slosses").html(commaify(site.losses.toString()));
     $("#sluck").html((site.bets == 0 ? 100 : site.luck * 100 / site.bets).toFixed(luck_precision) + "%");
     
-    $(".swagered").html(wagered);
-    $(".sprofitraw").html(profit);
+    $(".swagered").html( "<a href='http://bitcoinproject.net/just-dice-casino/just-dice-charts/wagered-chart'>"+wagered+"</a>" );
+    $(".sprofitraw").html( "<a href='http://bitcoinproject.net/just-dice-casino/just-dice-charts/profit-chart'>"+profit+"</a>" );
     
     $(".sprofitpct").html((-site.profit * 100 / site.wagered).toFixed(6) + "%");
     if (site.profit > 0) {
@@ -1964,7 +1964,11 @@ unsafeWindow.update_site_stats = function (site) {
     }
     // bankroll is updated in the init function after this function, and easier to do it this way than hook into that
     if ( lastPrice ) 
-        setTimeout( function () { $('.bankroll').html( curr+commaify( ( parseInt($('.bankroll').html().replace(",",""))*lastPrice).toFixed(2).toString() ) ) }, 1 );
+        setTimeout( function () { $('.bankroll').html( "<a href='http://bitcoinproject.net/just-dice-casino/just-dice-charts/invested-chart'>"+
+                                                      curr+commaify( ( parseInt($('.bankroll').html().replace(",",""))*lastPrice).toFixed(2).toString() )+"</a>" ) }, 1 );
+	// else 
+    //    setTimeout( function () { $('.bankroll').html( "<a href='http://bitcoinproject.net/just-dice-casino/just-dice-charts/invested-chart'>"
+    //		+commaify(parseFloat($('.bankroll').text().replace(",","")))+"</a>" ) }, 1 );        
 
 }
 

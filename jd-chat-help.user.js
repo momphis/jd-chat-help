@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       just-dice.com chat helper
 // @namespace  http://use.i.E.your.homepage/
-// @version    0.192
+// @version    0.3
 // @description  script to improve just-dice.com's chat.  Adds colored names to easily track users, highlights, nicknames, more
 // @require     http://code.jquery.com/jquery-latest.min.js
 // @match      https://just-dice.com/*
@@ -18,35 +18,39 @@
 // 16D5URtvvyMwnnG6kXUSJSd3ajx7WFYqBf for btc donations
 // DBjd7Hxv7gRk1pkJXLu17z4NF2f4TRx1Ed for doge donations
 
-var chatMode = false
-var loading;
-var setuptimer;
-var isloaded = false;
-var membersList = ({ });
-var users = ({ });
-var startTime;
-var unreadNotifications = ({ });
-var settingsMenu;
-var cmdHistory;
-var socket;
-var temp = ({ }); // temp global settings
-var timer = 60000; // timer for heartbeat. 60sec (that's how often btc average updates)
-var showControls = true; // for the toggle bet controls mode
+var SITE = unsafeWindow.location.origin;
+var JUST_DICE = 'https://just-dice.com';
+var JUST_DOGE = 'https://just-doge.com';
+
+/*function getSite () {
+    switch ( SITE ) {
+
+}*/
+
+var chatMode = false;                           // toggleBetControls var                                
+var loading;                                    // used to prevent replaceChatLine on initial load
+var setuptimer;                                 // ??
+var isLoaded = false;                           // set after initial load
+var membersList = ({ });                        // session users
+var users = ({ });                              // saved users
+var startTime;                                  // when the page loaded
+var unreadNotifications = ({ });                // messages with your name on it
+var settingsMenu;                               // settings menu objects
+var cmdHistory;                                 // command buffer
+var socket;                                     // socket object
+var temp = ({ });                               // temp global settings
+var timer = 60000;                              // timer for heartbeat. 60sec (that's how often btc average updates)
+var showControls = true;                        // for the toggle bet controls mode
+
+//resetWatchList();
 //GM_deleteValue('watchList');
-
+var watchList;
+var watchGroups;
 var settings = loadSettings();
-
-function getSetting ( setting ) {
-    if ( !settings )
-      loadSettings();
-    
-    return settings[setting]; 
-}
 var DEBUG = getSetting('debug');
-
-function setSetting ( setting, value ) {
-    settings[setting] = value;
-    saveSettings();
+if ( DEBUG == true ) {
+     console.log('settings');
+     console.log( settings );
 }
 
 
@@ -54,49 +58,23 @@ var defaultGroups = ({ 0:({'color':'#000','name':'default','background':'#FFFFFF
                  1:({'color':'blue','name':'group1','background':'#FFFFFF'}) , 
                  2:({'color':'green','name':'group2','background':'#FFFFFF'}) });
 
-if ( DEBUG == true ) {
-        console.log('Dump of saved values');
-        $.each( GM_listValues(), function ( key, value ) {
-        console.log( value+"="+GM_getValue( value ) );
-        });
-    console.log('End dump');
-}
-
-
-var watchList = loadWatchList();
-if ( DEBUG == true ) {
-        console.log('watchlist');
-        console.log( watchList );
-}
-//resetWatchList();
-
-var watchGroups = loadGroups();
-if ( DEBUG == true ) {
-        console.log('watchgroups');
-        console.log( watchGroups );
-}
-
-
-if ( DEBUG == true ) {
-        console.log('settings');
-        console.log( settings );
-}
+// 
 
 var currencies = ({
 "AUD":"$",
 "BRL":"R$",
 "CAD":"$",
 "CHF":"CHR",
-"CNY":"¥",
-"CZK":"Kč",
-"EUR":"€",
-"GBP":"£",
-"ILS":"₪",
-"JPY":"¥",
+"CNY":"Ÿ",
+"CZK":"Kc",
+"EUR":"_",
+"GBP":"",
+"ILS":"?",
+"JPY":"Ÿ",
 "NOK":"kr",
 "NZD":"$",
-"PLN":"zł",
-"RUB":"руб",
+"PLN":"zl",
+"RUB":"???",
 "SEK":"kr",
 "SGD":"$",
 "USD":"$",
@@ -162,10 +140,8 @@ function Socket () {
             //console.log( out );            
         }
 }
-// price ticker
-var div = buildTag( 'div', ({ 'addClass':'lastPrice buttons' }) );
-$( '.header' ).after( div );
-heartBeat();
+
+
 // End socket code (calls are in heartBeat() )
 
 // turn off bet controls and setup address button
@@ -207,7 +183,9 @@ function toggleBetControls () {
     }
 }
 
-// chat buttons
+// *****************************
+// ** start chat button funcs **
+// *****************************
 
 // paste address button
 var button = document.createElement( 'button' );
@@ -235,33 +213,7 @@ $( button ).click( function ( e ) {
     }
 });
 
-// mode button
-var button2 = buildTag( 'button', ({ 'html':'Mode' }) );
-$( button2 ).click( function ( e ) { 
-    var hideControls = getSetting( 'hideBetControls' );
-    
-    if ( hideControls == false ) {
-        setSetting( 'hideBetControls', true );
-        $( this ).addClass('button-on');
-        addInfo( "Chat Mode On" );
-    } else {
-        setSetting( 'hideBetControls', false );
-        $( this ).removeClass('button-on');
-        addInfo( "Chat Mode Off" );
-        
-    }
-    toggleBetControls();
-    
-    e.stopPropagation();
-});
-if ( getSetting( 'hideBetControls' ) ) {
-    $( button2 ).addClass( 'button-on' );
-    toggleBetControls();
-}
 
-// add both buttons after chat 'send' button
-$('.chatbutton').after( $( button2 ) );
-$('.chatbutton').after( $( button ) );
 
 function getPasteAddress () {
     var address = getSetting( 'pasteAddress' );
@@ -272,7 +224,9 @@ function getPasteAddress () {
 function savePasteAddress ( str ) {
     setSetting( 'pasteAddress', str );
 }
-// end chat buttons/toggleBetControls
+// ***************************
+// ** end chat button funcs **
+// ***************************
 
 // ***********************
 // ** start popup funcs **
@@ -330,9 +284,6 @@ function Panel () {
     }       
         
 }
-// *********************
-// ** end popup funcs **
-// *********************
 
 // info popup for status messages ( x saved, x didn't save etc etc)
 function addInfo ( str, type ) {
@@ -363,8 +314,8 @@ function idLink ( id, name ) {
         e.stopPropagation();
     });
         
-        if ( name )
-        name = dumpUser( id )['name'];
+    if ( name )
+        name = getSavedUser( id )['name'];
     if ( name ) {
         var span = buildTag( 'span',({'html':"["}) );
         $( span ).append( a );
@@ -374,6 +325,10 @@ function idLink ( id, name ) {
     }
     return a;
 }
+
+// *********************
+// ** end popup funcs **
+// *********************
 
 // should update notifications.  needs more testing
 function updateNotifications () {
@@ -480,7 +435,7 @@ function addGlobalStyle(newcss) {
 function dumpAllSaved () {
     var str = "";
     $.each( GM_listValues(), function ( key, value ) {
-        str += value+"="+GM_getValue( value );
+        str += "var "+value+"="+GM_getValue( value )+";";
         });
     return str;
 }
@@ -490,11 +445,17 @@ function dumpWatchListToString () {
     var dump = ({ });
     dump['watchList'] = watchList;
     dump['watchGroups'] = watchGroups;
+
     
+    var saved = GM_listValues();
+    for ( var x = 0; x < saved.length; x++ )
+        dump[ saved[x] ] = GM_getValue( saved[x] );
+
     dump = JSON.stringify( dump );
     
     return dump;
 }
+var exampleValid = '{"settings":{"currency":"","hideBetControls":false,"pasteAddress":"1KNjMRp3BDNgjzvC3UjPXYAJuP48dQ19Qb","msgs":false},"watchGroups":{"0":{"color":"#000","name":"default","background":"#FFFFFF"},"1":{"color":"#3104B4","name":"known","background":"#FFFFFF"},"2":{"color":"#75B1FF","name":"trusted","background":"#FFFFFF"},"3":{"name":"mods","color":"#067500"},"4":{"name":"scammer","color":"FF7575"},"5":{"name":"coders","color":"#0040FF"}},"watchList":{"1":{"name":"dooglus","msgs":{},"group":"3"},"2":{"name":"Deb","msgs":{},"group":"3"},"136":{"name":"sqwerty","msgs":{},"group":"1"},"710":{"name":"drfred","msgs":{},"group":"3"},"1470":{"name":"KLYE","msgs":{},"group":"1"},"2454":{"name":"cowbay","msgs":{},"group":"1"},"2619":{"name":"Aahzmundus","msgs":{},"group":"1"},"4764":{"name":"uvwvj","msgs":{},"group":"2"},"70707":{"name":"Ruru","msgs":{},"group":"2"},"91380":{"name":"seuntjie","msgs":{},"group":"5"},"99999":{"name":"BayAreaCoins","msgs":{},"group":"2"},"106686":{"name":"pmpmpm","msgs":{},"group":"1"},"121895":{"name":"slardar","msgs":{},"group":"1"},"132873":{"name":"MVDC","msgs":{},"group":"1"},"138853":{"name":"younggeorge","msgs":{},"group":"1"},"157167":{"name":"My_Thoughts","msgs":{},"group":"1"},"176670":{"name":"penny","msgs":{},"group":"1"},"195241":{"name":"Cookie Monster","msgs":{},"group":"1"},"225929":{"name":"inkha","msgs":{},"group":"1"},"246648":{"name":"Lights","msgs":{},"group":"1"},"250105":{"name":"belu","msgs":{},"group":"1"},"251679":{"name":"momphis","msgs":{},"group":"2"},"261918":{"name":"Snorlax","msgs":{},"group":"1"},"273771":{"name":"WillTAT4btc","msgs":{},"group":"1"},"280088":{"name":"jimmydorry","msgs":{},"group":"1"},"290681":{"name":"Hidari","msgs":{},"group":"3"},"294707":{"name":"tiffany","msgs":{},"group":"1"},"306424":{"name":"imdrstevebrule","msgs":{},"group":"1"},"311194":{"name":"BlackHawk","msgs":{},"group":"1"},"320875":{"name":"John_Chimpo","msgs":{},"names":{"191j1erFK546Tzr":"2014-01-12T18:50:40.310Z"},"group":"1"},"323168":{"name":"Unknown","msgs":{},"group":"1"},"334119":{"name":"KhaosVenom","msgs":{},"group":"1"},"334898":{"name":"Red","msgs":{},"group":"1"},"343339":{"name":"Mike","msgs":{},"group":"2"},"350395":{"name":"HelloBros","msgs":{},"group":"1"},"357396":{"name":"north","msgs":{},"group":"2"},"359335":{"name":"Seans Outpost","msgs":{},"group":"1"},"369301":{"name":"dakota","msgs":{},"group":"1"},"379824":{"name":"etrax","msgs":{},"group":"2"},"384640":{"name":"brandyne","msgs":{},"group":"1"},"385831":{"name":"Brenda","msgs":{},"group":"1"},"389217":{"name":"glumi","msgs":{},"names":{"brandyne":"2014-01-12T12:52:05.135Z"},"group":"4"},"390888":{"name":"sephirot","msgs":{},"group":"1"},"391363":{"name":"exrta","msgs":{},"group":"4"},"391473":{"name":"exrta","msgs":{},"group":"4"},"392250":{"name":"LoserAndWinner","msgs":{},"group":"4"}}}';
 
 // used in import watchList button
 // should just do watchList/watchGroups, or settings as well?
@@ -508,6 +469,7 @@ function importWatchListFromString ( str ) {
         str = JSON.parse( str );   
     } catch ( err ) {
         addInfo( 'Error importing watchList: '+err, 'error');
+        console.log(str);
         return;
     }
 
@@ -545,7 +507,7 @@ function resetWatchList () {
 // **************************
 // ** start settings funcs **
 // **************************
-// basic settings for things like paste address/show msgs etc
+// basic settings for things like paste address/log setting etc
 function loadSettings () { 
     //GM_deleteValue('settings');
   var tmp = GM_getValue( 'settings' );
@@ -564,9 +526,22 @@ function saveSettings () {
   var tmp = JSON.stringify( settings );
   GM_setValue( 'settings', tmp );
   console.log( 'saved settings' );
-if ( DEBUG )
+  if ( DEBUG )
     console.log(tmp);
   return true;
+}
+
+function getSetting ( setting ) {
+    if ( !settings )
+      loadSettings();
+    
+    return settings[setting]; 
+}
+
+
+function setSetting ( setting, value ) {
+    settings[setting] = value;
+    saveSettings();
 }
 
 function toggleSetting ( setting ) {
@@ -584,22 +559,31 @@ if ( DEBUG )
 // ** end settings funcs **
 // ************************
 
+// **********************
+// ** start user funcs **
+// **********************
+
+
+
 // ***************************
 // ** start watchList funcs **
 // ***************************
+// come back to this.  Same each user indivually.  No need to have one everyone 
+// loaded if they are not online
 function saveWatchList ( ) {
     var tmpList = ({ });
     
-    if ( !getSetting( 'msgs' ) ) {
-        $.each( watchList, function ( key, value ) {
-            tmpList[key] = value;
-            tmpList[key]['msgs'] = ({ });
-        });
-    } else tmpList = watchList;
+    tmpList = watchList;
+    $.each( tmpList, function ( key, value ) {
+        value['msgs'] = ({ });
+        //tmpList[key] = value;
+    });
+
     
     GM_setValue( 'watchList', JSON.stringify( tmpList ) );
     console.log( 'saving watchlist' );
 }
+
 
 function loadWatchList ( ) {
 
@@ -609,6 +593,7 @@ function loadWatchList ( ) {
            watchList = JSON.parse( watchList );
     else
         watchList = ({ });
+
     return watchList;
 }
 
@@ -633,6 +618,16 @@ function getWatchListUser ( userid, type ) {
    tmp = watchList[userid]; 
    
    return tmp;
+}
+
+function removeWatchListUser ( userid ) {
+    if ( watchList[userid] ) {
+        watchList[userid] = false;
+        saveWatchList();
+    }
+    // keep them saved for now
+    //deleteUserDetails(userid);
+    return true;
 }
 
 function saveWatchListUser ( userid, data ) {
@@ -666,18 +661,49 @@ function saveWatchListUser ( userid, data ) {
 // **********************
 // ** start user funcs **
 // **********************
-// user funcs.  These should be deleted and moved to watchList funcs 
-function getUser ( id ) {
-    if ( membersList [id] )
-        return membersList[id];
-    if ( watchList[id] )
-        return watchList[id];
-    return false;
+// new saved user stuff
+// some of this stuff needs moving over to watchList funcs
+function getSavedUser ( id ) {
+    var savedUser = GM_getValue( 'user_'+id );
+    
+    // maybe want to load these in if on watchlist at a later point
+    return savedUser || false;
 }
 
+// this is unused currently
 function deleteUserDetails ( userid ) {
-    watchList[userid] = false; 
-    saveWatchList();
+    GM_deleteValue( 'user_'+id );
+    
+}
+
+function saveUser ( id, data ) {
+    var tUser = getSavedUser(id);
+    
+    if ( !tUser )
+        tUser = data;
+    else {
+        $.each ( data, function ( key, value ) {
+            tUser[key] = value;
+            // check for replaces
+        });
+    }
+    
+    GM_setValue( 'user_'+id, tUser );        
+}
+
+function getUserLog ( id ) {
+   var log = GM_getValue( 'user_log_'+id );
+   
+   return log || ({ });
+}
+
+function saveUserLog( id, time, msg ) {
+   var log = getUserLog( id );
+   
+   log[time] = msg;
+   
+   GM_setValue( 'user_log_'+id, log );
+   return log;
 }
 
 function dumpSavedUser ( userid ) {
@@ -700,9 +726,10 @@ function dumpUser ( userid ) {
 
 // this one does get used
 function addUserToMembersList ( id, data, ul ) {
-        if ( data && !$('.membersList_'+id).html() ) {
+        if ( data ) {
         var name = data['name'].trunc(12);       
-      
+        membersList[id]['added'] = true;
+        
         var li = buildli( ({ 'css': ({'padding':'0px'}), 'addClass':getGroupClassForUser( id )+" membersList_"+id }) );
         $( li ).html( " (" );
         $( li ).append( idLink(id,false) );
@@ -821,9 +848,10 @@ function saveGroups () {
     rebuildWatchListSettings( 'Groups Saved', false ); 
 }
 
+
 function loadGroups () {
         var cssStr = "";
-    
+   
     var groups = GM_getValue( 'watchGroups' );
     console.log('loading groups');
     if ( groups )
@@ -1149,7 +1177,7 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
                 a = idLink( userid, false );
                 $( a ).css({'float':'left', 'width':'60px'});
                 $( a ).attr({ 'href':'#showUsersDetails','id':userid });
-            $( a ).click( function ( e ) { showUserDetails(userid); });
+           // $( a ).click( function ( e ) { showUserDetails(userid); });
             $( a ).addClass( getGroupClassForUser( userid ) );
                 var li = buildli( ({'html':a }) );
         
@@ -1235,14 +1263,16 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     })
     $( ul ).append( buildTag( 'li', ({ 'html':select }) ) );
     
-    var msgSetting = getSetting('msgs');
+    // atm think this is for all chat logging
+    // come back to this when you fix the logging stuff
+    var logSetting = getSetting('logMsgs');
     var button = document.createElement( 'button' );
-    $( button ).text( msgSetting ? 'Turn logging off' : 'Turn logging on' );
-    if ( msgSetting )
+    $( button ).text( logSetting ? 'Turn logging off' : 'Turn logging on' );
+    if ( logSetting )
         $( button ).addClass('button-on')
 
     $( button ).click( function ( e ) {
-        if ( toggleSetting('msgs')==true ) {
+        if ( toggleSetting('logMsgs')==true ) {
           
             $( this ).text( 'Turn logging off' );
             addInfo( 'Logging turned on','success' );
@@ -1299,7 +1329,7 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
         var panel = new Panel();
         var li = document.createElement( 'li' );
         //$( li ).append( "<textarea class=watchListDump>"+dumpWatchListToString()+"</textarea>" );
-                $( li ).append( "<textarea class=watchListDump>"+dumpAllSaved(true)+"</textarea>" );        
+                $( li ).append( "<textarea class=watchListDump>"+dumpWatchListToString()+"</textarea>" );        
         panel.setTitle( 'Export watchlist' );
                 panel.addClass('watchListPanel');
         panel.build( [ li ]);
@@ -1369,8 +1399,9 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
 // ** start user popup funcs **
 // ****************************
 // popup for all user details
+// should be renamed buildUserPopup
 function showUserDetails ( id ) {
-    var rows = [ ];
+    var rows = [ ], user;
     var watch = dumpUser( id );
     console.log('dumpuser '+id);
     console.log(watch);
@@ -1398,44 +1429,78 @@ function showUserDetails ( id ) {
         }
     });
 
-    var msgs = getUser(id)['msgs'];
-    var smsgs = getWatchListUser( id )['msgs'];  
-    console.log('smsm');
-    console.log(smsgs);
-    console.log('smsms end');
+/*
+    $.each( membersList[id], function( key, value ) {
+        if ( key != 'msgs' && key != 'name' && key != 'group' ) {
+                var li = buildli( key+"="+JSON.stringify(value) );
+                rows.push( li );
+        }
+    });
+*/
+    var msgs;
+
+    if ( membersList[id] ) {
+        //msgs = jQuery.extend({}, membersList[id]['msgs'] );
+        
+        $.each( membersList[id], function( key, value ) {
+            if ( key != 'msgs' && key != 'name' && key != 'group' ) {
+                var li = buildli( key+"="+JSON.stringify(value) );
+                rows.push( li );
+            }
+        });
+        
+    }
+    else {
+       // msgs = false;
+                user = getSavedUser(id);
+    }
+    
+    if ( user ) {
+                var li = buildli( "lastseen="+JSON.stringify(user['lastMsgTime']   ) );
+                rows.push( li );  
+                console.log(user);
+    } 
+    //var lastMsgTime = 
+    console.log('session msgs');
+    console.log(msgs);
+    var loggedMsgs = getUserLog( id );  
+    console.log('log start');
+    console.log(loggedMsgs);
+    console.log('log end');
     if ( msgs ) {
         var idstr = "("+id+") &lt;"+name+"&gt;";
         var li = buildli( '<b>Messages this session:</b> ' );
         rows.push( li );
         
         var msglist = buildTag( 'ul', ({ 'addClass':'msglist' }) );
-        $.each( msgs, function( key, value ) {
+        $.each( msgs, function( msgTime, msgObj ) {
 //date.format( 'yy-MM-dd hh:mm:ss' );
-            console.log(key);
-            var time = getTime(key);
-            key = time.format('hh:mm:ss');
-            var li = buildli( key+" "+idstr+" "+value );
+            //console.log(msgTime);
+            var time = getTime(msgTime);
+            msgTime = time.format('hh:mm:ss');
+            var li = buildli( msgObj );
             $( msglist ).append( li );
         });
         rows.push( buildli( msglist ) );
     }
     
-    if ( smsgs ) {
+    if ( loggedMsgs ) {
         var idstr = "("+id+") &lt;"+name+"&gt;";
         var li = buildli( '<b>Message history:</b> ' );
         rows.push( li );
   
-        var msglist = buildTag( 'ul', ({ 'addClass':'msglist' }) );
+        var logList = buildTag( 'ul', ({ 'addClass':'msglist' }) );
 
-        $.each( smsgs, function( key, value ) {
+        $.each( loggedMsgs, function( key, value ) {
 //date.format( 'yy-MM-dd hh:mm:ss' );
 
             var time = getTime(key);
             key = time.format('hh:mm:ss');
             var li = buildli( key+" "+idstr+" "+value );
-            $( msglist ).append( li );
+            $( logList ).append( li );
         });
-        rows.push( buildli( msglist ) );
+        console.log(logList);
+        rows.push( buildli( logList ) );
     }
     /*
     var names = membersList[id]['names'];
@@ -1454,7 +1519,8 @@ function showUserDetails ( id ) {
         title += "on watchlist";
     
     panel.setTitle( title );
-    panel.addClass( 'watchListDetails' );
+    panel.addClass( 'watchListDetails userDetails' );
+   
     panel.build( rows );
 
 }
@@ -1465,17 +1531,18 @@ function handleUserPopup ( type, id, pos ) {
     $('.watchListPanel').remove();
     
     var list, rows = [ ];
-    var name = getUser(id)['name'];
+    var name = getWatchListUser( id, ['name'] )['name'];
     type = type.replace( "#", "" );
     switch ( type ) {
+        case "changeGroup"              :
         case "saveWatchList"            :       list = ({ 'header' : 'Pick a group', 'li' : ({ 0 : 'default', 1:'group1',2:'group2' }) });
                                                 break;
-                                                
+                  
         case "showWatchListDetails"     :       showUserDetails(id);
                                                 return;
                                                 break;
        
-        case "delWatchList"             :       deleteUserDetails( id );
+        case "delWatchList"             :       removeWatchListUser( id );
                                                 addInfo( "Deleted "+id+" from watchlist", "warning" );
                                                 readChatLog();
                                                 return;
@@ -1515,10 +1582,18 @@ function handleUserPopup ( type, id, pos ) {
         $( a ).click( function ( e ) {
             var val = $( this ).attr('href').replace("#","");
             
+            var userInfo = membersList[id];
+            if ( !userInfo )
+                userInfo = getSavedUser( id );
+            
+            if ( !userInfo )                    // come back to this once we seperate them
+                userInfo = watchList[id];
+            
             console.log( "Adding membersList "+id+"="+val );
-            console.log(membersList);
-            membersList[id]['group'] = val;
-            saveWatchListUser(id,membersList[id]);
+            console.log(userInfo);
+            userInfo['group'] = val;
+            saveWatchListUser(id,userInfo);
+            saveUser( id, userInfo );
             
             readChatLog(); // to update colors;
                         e.stopPropagation();
@@ -1555,14 +1630,15 @@ function buildUserPopup ( anchor, id ) {
     name = membersList[id]['name']
         
     var mHeader = "("+id+") &lt;"+name+"&gt;";
-    var watchMenuItems = ({ "Show Details":'showWatchListDetails',"Save to watchlist":'saveWatchList',"Remove from watchlist":"delWatchList",
+    var watchMenuItems = ({ "Show Details":'showWatchListDetails',"Save to watchlist":'saveWatchList',
+                            "Change Group":"changeGroup","Remove from watchlist":"delWatchList",
                            "Watch user bets":"watchUserBets","Ignore":"ignoreUser" });
 
     
     //$(".watchMenuUser").remove(); // clean up any old ones   
     // build the menu items
     $.each ( watchMenuItems, function ( key, value ) {
-        if ( ( ( value != 'saveWatchList' && watchList[id] ) || ( !watchList[id] &&  value != "delWatchList"  ) ) ) { 
+        if ( ( ( value != 'saveWatchList' && watchList[id] ) || ( !watchList[id] &&  value != ( "delWatchList" ||  "changeGroup" ) ) ) ) { 
             var li = buildli( ({"html": "<a href=\"#"+value+"\" class=\"watchMenuLink\">"+key+"</a>",
                                 "css" : "padding-bottom:3px" }) );
                 
@@ -1667,6 +1743,14 @@ function replaceChatLine ( lineObj ) {
         data['msg'] = result[4];
     }
         var name = data['name'], id = data['id'], msg = data['msg'], timestamp = data['lastseen'];
+        //if ( DEBUG ) console.log('this is id '+id );
+        var idMatch = id.match( /^\<a(.*?)\>(.*?)\<\/a\>$/ ) || [ ];
+        // we've already seen this
+        if ( idMatch.length ) {
+            return;
+        console.log('this is real id '+id );
+        }
+        
         var time = getTime();
         time = jdTime(timestamp);
     //time = new Date( time.get
@@ -1707,7 +1791,6 @@ function replaceChatLine ( lineObj ) {
     if ( !membersList[id] ) {
 
         var msgs = ({ });
-        msgs[ time ] = msg;
         membersList[id] =  ({  'name':name, 'msgs': msgs })  ;
         //rebuildMembersList();
     } else {
@@ -1721,21 +1804,19 @@ function replaceChatLine ( lineObj ) {
             membersList[id]['names'] = names;
         }
 
-        membersList[id]['msgs'][ time ] = msg;
     }
 
-    // check for nicknames. must have 3/4 functions for this.  Sort it out
-    var dUser = getWatchListUser( id, ['name','msgs'] );
-    if ( dUser && dUser['name'] && ( dUser['name'] != name ) )
-        name = "<i>("+dUser['name']+")</i>"+name;
+    var thisUser = membersList[id] || ({ });
+
     
-    if ( getSetting('msgs') && dUser && !loading) {
-        if ( !dUser['msgs'] )
-            dUser['msgs'] = ({ });
-        dUser['msgs'][time]= msg;
-        saveWatchListUser( id, ({ 'msgs': dUser['msgs'] }) );
-    }
-    if ( !loading && $('.membersList').html() )
+    // check for nicknames. must have 3/4 functions for this.  Sort it out
+
+    if ( thisUser && thisUser['name'] && ( thisUser['name'] != name ) )
+        name = "<i>("+thisUser['name']+")</i>"+name;
+    
+    if ( getSetting('logMsgs') && thisUser && watchList[id] ) 
+        saveUserLog(id,time,msg);
+    if ( ( !loading && $('.membersList').html() ) && ( isLoaded && !thisUser['added'] ) )
         addUserToMembersList( id, data, $('.membersList') );
     
     $( lineObj ).html( timestamp+" (" );
@@ -1744,14 +1825,17 @@ function replaceChatLine ( lineObj ) {
 
     
     $( lineObj ).append( ") &lt;"+name+"&gt "+msg );
-    $( lineObj ).attr({ 'dataDump' : JSON.stringify(data) });
+    //$( lineObj ).attr({ 'dataDump' : JSON.stringify(data) });
+    membersList[id]['msgs'][ time ] = lineObj;
+    saveUser(id,({'lastMsgTime':time}) )
+        membersList[id]['lastMsgTime'] = time;
 }
 
 // the main startup/reload func.  Should unset any temp vars releated to chat/memberslist
 // and reload everything
 function readChatLog () {
     // reset everything
-        membersList = [ ];
+
     users = ({ });
     $('.membersList').remove();
     $('.chat-right').remove();
@@ -1768,7 +1852,7 @@ function readChatLog () {
     }
     
     if ( DEBUG ) {
-        console.log('memberslist');
+        console.log('memberslist from readChatLog');
                 console.log(membersList);
     }
     // Bigger chatbox
@@ -1813,29 +1897,11 @@ function readChatLog () {
     //}
     
     // build memberlist
+    
     $.each( membersList, function ( id, data ) {
         //console.log('checking to add '+id);
         addUserToMembersList( id, data, membersListPanel );
-        if ( data ) {
-        
-        var msgs = data['msgs'];
 
-        var dtUser = getWatchListUser( id, ['msgs','name'] );
-
-
-        if ( dtUser && getSetting('msgs') && data['msgs'] ) {
-            dtUser = dtUser.msgs;
-            if ( !dtUser )
-                dtUser = ({ });
-            //dUser
-   
-        console.log(id);
-            $.each( data['msgs'], function ( k, v ) {
-                dtUser[k]= v;
-            });
-    
-            saveWatchListUser( id, ({ 'msgs': dtUser }) );
-        } }
     });
    
     // container
@@ -1887,10 +1953,14 @@ function readChatLog () {
     // update notifications tab with any items found in chatlog
     updateNotifications();
     loading = false;
+    isLoaded = true;
+    console.log('memberslist');
+    console.log(membersList);
 }
 // ************************
 // ** end chatline funcs **
 // ************************
+
 
 // **************************
 // ** start funcHook funcs **
@@ -1910,7 +1980,7 @@ unsafeWindow.scroll_to_bottom_of_chat = function () {
     var chatLine = $("div#chat .chatline:last-child");
                                                         
     if ( !startTime ) {
-
+                setup();
                 readChatLog();
     }
     else
@@ -1966,9 +2036,9 @@ unsafeWindow.update_site_stats = function (site) {
     if ( lastPrice ) 
         setTimeout( function () { $('.bankroll').html( "<a href='http://bitcoinproject.net/just-dice-casino/just-dice-charts/invested-chart'>"+
                                                       curr+commaify( ( parseInt($('.bankroll').html().replace(",",""))*lastPrice).toFixed(2).toString() )+"</a>" ) }, 1 );
-	// else 
+        // else 
     //    setTimeout( function () { $('.bankroll').html( "<a href='http://bitcoinproject.net/just-dice-casino/just-dice-charts/invested-chart'>"
-    //		+commaify(parseFloat($('.bankroll').text().replace(",","")))+"</a>" ) }, 1 );        
+    //          +commaify(parseFloat($('.bankroll').text().replace(",","")))+"</a>" ) }, 1 );        
 
 }
 
@@ -2012,6 +2082,67 @@ unsafeWindow.update_investment = function (i, p, pft) {
 // ************************
 // ** end funcHook funcs **
 // ************************
+
+function setup () { 
+    membersList = [ ];
+    
+    if ( DEBUG == true ) {
+        console.log('Dump of saved values');
+        $.each( GM_listValues(), function ( key, value ) {
+            console.log( value+"="+GM_getValue( value ) );
+        });
+        console.log('End dump');
+    }  
+    
+   
+    watchList = loadWatchList();   
+    if ( DEBUG == true ) {
+        console.log('watchlist');
+        console.log( watchList );
+    }
+    
+    watchGroups = loadGroups();
+    if ( DEBUG == true ) {
+        console.log('watchgroups');
+        console.log( watchGroups );
+    }  
+    
+
+    heartBeat();
+
+
+    // price ticker
+    var div = buildTag( 'div', ({ 'addClass':'lastPrice buttons' }) );
+    $( '.header' ).after( div );
+    
+    // mode button
+    var button2 = buildTag( 'button', ({ 'html':'Mode' }) );
+    $( button2 ).click( function ( e ) { 
+    var hideControls = getSetting( 'hideBetControls' );
+    
+    if ( hideControls == false ) {
+        setSetting( 'hideBetControls', true );
+        $( this ).addClass('button-on');
+        addInfo( "Chat Mode On" );
+    } else {
+        setSetting( 'hideBetControls', false );
+        $( this ).removeClass('button-on');
+        addInfo( "Chat Mode Off" );
+        
+    }
+    toggleBetControls();
+    
+    e.stopPropagation();
+    });
+    if ( getSetting( 'hideBetControls' ) ) {
+        $( button2 ).addClass( 'button-on' );
+        toggleBetControls();
+    }
+
+    // add both buttons after chat 'send' button
+    $('.chatbutton').after( $( button2 ) );
+    $('.chatbutton').after( $( button ) );
+}
 
 // pageload
 // not much we can do here because we have to wait for just-dice to load before we are really ready
@@ -2106,17 +2237,22 @@ var css =
 // tabs
 +".watchTabs        { padding:0px;margin:0px }"
 +".watchTabs>div    { width: 110px; border: 1px solid #000; }"
-+".watchTabs>.active { background:#eee }"
+//+".watchTabs>.active { background:#eee }"
 +".userTab { float: left; border-radius: 5px 0px 0px 0px; padding-left: 3px }"
 +".watchTab { float: right; border-radius: 0px 5px 0px 0px; text-align:right;padding-right:3px; }"
 // chatmode
 +".chatModeButton       { width: 95px; }"
 // user details
-+".msglist                      { max-height: 250px; overflow: auto; }"
++".msglist                      { max-height: 150px; overflow: auto; }"
++".userDetails          { min-width: 800px; min-height: 500px }"
++".userDetails>ul { min-height: 465px; }"
 //ticket
 +".lastPrice                    { width: 175px; margin-left: 5px; margin-right: 5px; background: #bbb; float: left;padding:5px;font-size:1.6em;height:40px}"
 //buttons
 +".button-on                    { background: green }"
+// color overrides
++".tabs a      , .watchTabs>div                 { background: #B08484 }"
++".tabs a.active, .watchTabs>.active                { background: #84b085 }"
 ;    
 
 // sets up the socket to check bitcoinaverage price every 60 seconds (or not if no currency selected)
@@ -2126,7 +2262,20 @@ function heartBeat () {
     console.log('beat');
     socket.connect('average');
     setTimeout( heartBeat, timer || 60000 );
+    
 }
+
+function cleanUpLogs () {
+        $.each( GM_listValues(), function ( key, value ) {
+            var matchStr = value.match( /^user_log_<a(.*)$/ ) || [ ];
+            if ( matchStr.length ) {
+                GM_deleteValue( value );
+                console.log('deleting log '+value);
+            }
+        });
+}
+cleanUpLogs();
+    
 /*
 var help = ({
     "groupList" :       "To edit a group name or color, click on the name or the color.  Clicking on the id will show the group details.<br>"

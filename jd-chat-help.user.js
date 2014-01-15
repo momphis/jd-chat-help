@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       just-dice.com chat helper
 // @namespace  http://use.i.E.your.homepage/
-// @version    0.3
+// @version    0.31
 // @description  script to improve just-dice.com's chat.  Adds colored names to easily track users, highlights, nicknames, more
 // @require     http://code.jquery.com/jquery-latest.min.js
 // @match      https://just-dice.com/*
@@ -455,7 +455,7 @@ function dumpWatchListToString () {
     
     return dump;
 }
-var exampleValid = '{"settings":{"currency":"","hideBetControls":false,"pasteAddress":"1KNjMRp3BDNgjzvC3UjPXYAJuP48dQ19Qb","msgs":false},"watchGroups":{"0":{"color":"#000","name":"default","background":"#FFFFFF"},"1":{"color":"#3104B4","name":"known","background":"#FFFFFF"},"2":{"color":"#75B1FF","name":"trusted","background":"#FFFFFF"},"3":{"name":"mods","color":"#067500"},"4":{"name":"scammer","color":"FF7575"},"5":{"name":"coders","color":"#0040FF"}},"watchList":{"1":{"name":"dooglus","msgs":{},"group":"3"},"2":{"name":"Deb","msgs":{},"group":"3"},"136":{"name":"sqwerty","msgs":{},"group":"1"},"710":{"name":"drfred","msgs":{},"group":"3"},"1470":{"name":"KLYE","msgs":{},"group":"1"},"2454":{"name":"cowbay","msgs":{},"group":"1"},"2619":{"name":"Aahzmundus","msgs":{},"group":"1"},"4764":{"name":"uvwvj","msgs":{},"group":"2"},"70707":{"name":"Ruru","msgs":{},"group":"2"},"91380":{"name":"seuntjie","msgs":{},"group":"5"},"99999":{"name":"BayAreaCoins","msgs":{},"group":"2"},"106686":{"name":"pmpmpm","msgs":{},"group":"1"},"121895":{"name":"slardar","msgs":{},"group":"1"},"132873":{"name":"MVDC","msgs":{},"group":"1"},"138853":{"name":"younggeorge","msgs":{},"group":"1"},"157167":{"name":"My_Thoughts","msgs":{},"group":"1"},"176670":{"name":"penny","msgs":{},"group":"1"},"195241":{"name":"Cookie Monster","msgs":{},"group":"1"},"225929":{"name":"inkha","msgs":{},"group":"1"},"246648":{"name":"Lights","msgs":{},"group":"1"},"250105":{"name":"belu","msgs":{},"group":"1"},"251679":{"name":"momphis","msgs":{},"group":"2"},"261918":{"name":"Snorlax","msgs":{},"group":"1"},"273771":{"name":"WillTAT4btc","msgs":{},"group":"1"},"280088":{"name":"jimmydorry","msgs":{},"group":"1"},"290681":{"name":"Hidari","msgs":{},"group":"3"},"294707":{"name":"tiffany","msgs":{},"group":"1"},"306424":{"name":"imdrstevebrule","msgs":{},"group":"1"},"311194":{"name":"BlackHawk","msgs":{},"group":"1"},"320875":{"name":"John_Chimpo","msgs":{},"names":{"191j1erFK546Tzr":"2014-01-12T18:50:40.310Z"},"group":"1"},"323168":{"name":"Unknown","msgs":{},"group":"1"},"334119":{"name":"KhaosVenom","msgs":{},"group":"1"},"334898":{"name":"Red","msgs":{},"group":"1"},"343339":{"name":"Mike","msgs":{},"group":"2"},"350395":{"name":"HelloBros","msgs":{},"group":"1"},"357396":{"name":"north","msgs":{},"group":"2"},"359335":{"name":"Seans Outpost","msgs":{},"group":"1"},"369301":{"name":"dakota","msgs":{},"group":"1"},"379824":{"name":"etrax","msgs":{},"group":"2"},"384640":{"name":"brandyne","msgs":{},"group":"1"},"385831":{"name":"Brenda","msgs":{},"group":"1"},"389217":{"name":"glumi","msgs":{},"names":{"brandyne":"2014-01-12T12:52:05.135Z"},"group":"4"},"390888":{"name":"sephirot","msgs":{},"group":"1"},"391363":{"name":"exrta","msgs":{},"group":"4"},"391473":{"name":"exrta","msgs":{},"group":"4"},"392250":{"name":"LoserAndWinner","msgs":{},"group":"4"}}}';
+
 
 // used in import watchList button
 // should just do watchList/watchGroups, or settings as well?
@@ -930,6 +930,8 @@ function buildTag ( type, buildData ) {
         $( tag ).text( buildData['text'] );
     if ( buildData['value'] )
         $( tag ).val( buildData['value'] );
+    if ( buildData['id'] )
+        $( tag ).attr('id', buildData['value']);
     
     return tag;
 }
@@ -1817,7 +1819,7 @@ function replaceChatLine ( lineObj ) {
     if ( getSetting('logMsgs') && thisUser && watchList[id] ) 
         saveUserLog(id,time,msg);
     if ( ( !loading && $('.membersList').html() ) && ( isLoaded && !thisUser['added'] ) )
-        addUserToMembersList( id, data, $('.membersList') );
+        loadMembersList();
     
     $( lineObj ).html( timestamp+" (" );
     $( lineObj ).append(  a  );
@@ -1831,13 +1833,72 @@ function replaceChatLine ( lineObj ) {
         membersList[id]['lastMsgTime'] = time;
 }
 
+// loads the members list
+function loadMembersList () {
+    // build membersList panel
+
+    var membersListPanel;
+    var membersListList;
+  //  if ( $('.membersList') && $('.membersList').length )
+   //     membersListList = $('.memberlist');
+   // else
+        membersListList = buildTag( 'ul', ({ 'addClass' : 'membersList','html':'' }) );
+
+    //$( membersList ).html("");
+
+   // if ( !membersListPanel.html() ) {
+        
+        // until I find somewhere else to put this
+
+        var a = document.createElement( 'a' );
+        $( a ).attr({'href':'#unreadNotifications'});
+        $( a ).click( function ( e ) {
+            var panel = new Panel();
+            
+            
+            console.log( unreadNotifications );
+        });
+        
+        var li = buildli( ({'addClass':'unreadNotifications','css':({ 'display':'none' }), 'html': a }) );
+        $( membersListList ).append(li);
+
+        // buttons
+        var button = document.createElement( 'button' );
+        $( button ).text( 'Refresh' );
+        $( button ).click( function ( e ) {
+                        readChatLog();
+            addInfo( 'Chatlog refreshed','info' );
+                e.stopPropagation();
+        });
+        var li = buildTag( 'li', ({ 'html': button }) );
+    
+        $( membersListList ).append(li);
+        li = document.createElement( 'li' );
+        $( li ).text( Object.keys( membersList ).length+" users since "+startTime );
+        $( membersListList ).append(li);
+
+        console.log( membersListList );
+    //}
+    
+    // build memberlist
+    
+    $.each( membersList, function ( id, data ) {
+        //console.log('checking to add '+id);
+        addUserToMembersList( id, data, membersListList );
+
+    });
+    console.log(membersListList);
+    $( '.membersListPanel' ).html(          membersListList  );
+    console.log( $( '.membersListPanel' ) );
+    return membersListList;
+}    
+    
 // the main startup/reload func.  Should unset any temp vars releated to chat/memberslist
 // and reload everything
 function readChatLog () {
     // reset everything
 
     users = ({ });
-    $('.membersList').remove();
     $('.chat-right').remove();
     loading = true;
     settingsMenu = new settingsMenuObj();
@@ -1861,48 +1922,7 @@ function readChatLog () {
     $( '.chatlog' ).css({ 'width' : '825px' });
         $( '.chatbase').css({ 'width':'850px' });
     
-    // build membersList panel
-    var membersListPanel = buildTag( 'ul', ({'addClass':'membersList'}) );
 
-   // if ( !membersListPanel.html() ) {
-        
-        // until I find somewhere else to put this
-
-        var a = document.createElement( 'a' );
-        $( a ).attr({'href':'#unreadNotifications'});
-        $( a ).click( function ( e ) {
-            var panel = new Panel();
-            
-            
-            console.log( unreadNotifications );
-        });
-        
-        var li = buildli( ({'addClass':'unreadNotifications','css':({ 'display':'none' }), 'html': a }) );
-        $( membersListPanel ).append( li );
-
-        // buttons
-        var button = document.createElement( 'button' );
-        $( button ).text( 'Refresh' );
-        $( button ).click( function ( e ) {
-                        readChatLog();
-            addInfo( 'Chatlog refreshed','info' );
-                e.stopPropagation();
-        });
-        var li = buildTag( 'li', ({ 'html': button }) );
-    
-        $( membersListPanel ).append( li );
-        li = document.createElement( 'li' );
-        $( li ).text( Object.keys( membersList ).length+" users since "+startTime );
-        $( membersListPanel ).append( li );
-    //}
-    
-    // build memberlist
-    
-    $.each( membersList, function ( id, data ) {
-        //console.log('checking to add '+id);
-        addUserToMembersList( id, data, membersListPanel );
-
-    });
    
     // container
     var div = document.createElement( 'div' );
@@ -1940,10 +1960,12 @@ function readChatLog () {
     var watchListSettings = document.createElement( 'div' );
     $( watchListSettings ).addClass( 'watchListSettings' );
     
-    
+
+
+
     // stick it all together, put to right of chat
     $( div ).append( tabs );
-    $( div ).append( buildTag('div', ({ 'html' : membersListPanel }) ) );
+    $( div ).append( buildTag('div', ({ 'addClass':'membersListPanel' }) ) );
     $( div ).append( buildTag('div', ({ 'html' : watchListSettings })  ) );
     $( '.chatscroll').after( div );
     
@@ -1952,6 +1974,7 @@ function readChatLog () {
 
     // update notifications tab with any items found in chatlog
     updateNotifications();
+    loadMembersList();
     loading = false;
     isLoaded = true;
     console.log('memberslist');
@@ -2212,6 +2235,7 @@ var css =
 +"                   list-style-type:none; margin:0px; padding:0px; border:1px solid #000; "
 +"                   background:#FFFFFF; width:220;border-radius:0px 0px 5px 5px;}"
 +".membersList    { width: 100%;float:left}"
++".membersListPanel { }"
 +".watchListSettings { max-height:320px;overflow:auto;float:right;border:1px solid #000; width:100%;"
 +"                                              background:#FFFFFF;color:#000000; border-radius:0px 0px 5px 5px; float:left}"
 +".watchListSettings>ul  {color:#000000; "
@@ -2252,7 +2276,8 @@ var css =
 +".button-on                    { background: green }"
 // color overrides
 +".tabs a      , .watchTabs>div                 { background: #B08484 }"
-+".tabs a.active, .watchTabs>.active                { background: #84b085 }"
++".tabs a.active, .watchTabs>.active                { background: #84b085;  }"
++".tabs a.active { margin: 5px }"
 ;    
 
 // sets up the socket to check bitcoinaverage price every 60 seconds (or not if no currency selected)

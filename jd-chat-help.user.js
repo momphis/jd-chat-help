@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       just-dice.com chat helper
 // @namespace  http://use.i.E.your.homepage/
-// @version    0.31
+// @version    0.312
 // @description  script to improve just-dice.com's chat.  Adds colored names to easily track users, highlights, nicknames, more
 // @require     http://code.jquery.com/jquery-latest.min.js
 // @match      https://just-dice.com/*
@@ -123,14 +123,17 @@ function Socket () {
             //console.log("Exchanges ");
             var previous = temp['last'], price = inArr['last'], bordercolor = "#777";
             if ( previous ) {
-                if ( previous > price )
-                    bordercolor = 'red';
-                else
-                    bordercolor = 'green';
+                if ( previous > price ) {
+                    $('.lastPrice').addClass( 'price-down' );
+                    $('.lastPrice').removeClass('price-up');
+                } else {
+                    $('.lastPrice').addClass( 'price-up' );
+                    $('.lastPrice').removeClass('price-down');
+                }
             }
             temp['last'] = price;
             $('.lastPrice').html(currencies[curr]+" "+price);
-            $('.lastPrice').css({ 'border': '3px solid '+bordercolor });
+
             //console.log(Object.keys(exchanges));
             //$.each( exchanges, function ( k,v ) {
             //    //console.log(k);
@@ -1391,7 +1394,7 @@ function rebuildWatchListSettings ( infoMsg, limits ) {
     var li = buildli( button );
     $( ul ).append( li );
     $( div ).append( ul );
-    unsafeWindow.scroll_to_bottom_of_chat();
+    //unsafeWindow.scroll_to_bottom_of_chat();
 }
 // *********************************
 // ** end watchListSettings funcs **
@@ -1993,13 +1996,13 @@ function readChatLog () {
 //var oldScroll = scroll_to_bottom_of_chat();
 //console.log(oldScroll);
 var jdFuncs = ({ });
-jdFuncs ['scroll_to_bottom_of_chat'] = unsafeWindow.scroll_to_bottom_of_chat;
-unsafeWindow.scroll_to_bottom_of_chat = function () { 
+
+// from http://sellmoe.me/bot.txt
+// perfect!  Need to use scroll_to_bottom on startup otherwise there's a delay, but this works great
+unsafeWindow.socket.on("chat", function (date, txt) { 
     //oldScroll.call();
-    eval("var jdfuncs_scroll_to_bottom_of_chat ="+jdFuncs['scroll_to_bottom_of_chat'] );
-    eval("jdfuncs_scroll_to_bottom_of_chat();");
-    //chatscroll.stop().animate({scrollTop:chatscroll[0].scrollHeight},1e3);
     
+   // console.log(date);
     var chatLine = $("div#chat .chatline:last-child");
                                                         
     if ( !startTime ) {
@@ -2008,7 +2011,7 @@ unsafeWindow.scroll_to_bottom_of_chat = function () {
     }
     else
         chatLine =  replaceChatLine( chatLine );
-} 
+}); 
 /*
 jdFuncs ['add_chat'] = unsafeWindow.add_chat;
 unsafeWindow.add_chat = function ( date, txt, look) {
@@ -2265,7 +2268,7 @@ var css =
 +".userTab { float: left; border-radius: 5px 0px 0px 0px; padding-left: 3px }"
 +".watchTab { float: right; border-radius: 0px 5px 0px 0px; text-align:right;padding-right:3px; }"
 // chatmode
-+".chatModeButton       { width: 95px; }"
++".chatModeButton       { width: 95px;  }"
 // user details
 +".msglist                      { max-height: 150px; overflow: auto; }"
 +".userDetails          { min-width: 800px; min-height: 500px }"
@@ -2273,11 +2276,12 @@ var css =
 //ticket
 +".lastPrice                    { width: 175px; margin-left: 5px; margin-right: 5px; background: #bbb; float: left;padding:5px;font-size:1.6em;height:40px}"
 //buttons
-+".button-on                    { background: green }"
+//+".button-on                    { background: green }"
 // color overrides
-+".tabs a      , .watchTabs>div                 { background: #B08484 }"
-+".tabs a.active, .watchTabs>.active                { background: #84b085;  }"
-+".tabs a.active { margin: 5px }"
++".tabs a      , .watchTabs>div , .price-down                { background: #B08484 }"
++".tabs a.active, .watchTabs>.active, .chatModeButton, .header, .button-on, .price-up                { background: #84b085;  }"
++"body { background-color: #899999 }"
+//+".tabs a.active { margin: 5px }"
 ;    
 
 // sets up the socket to check bitcoinaverage price every 60 seconds (or not if no currency selected)

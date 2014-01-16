@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name       just-dice.com chat helper
 // @namespace  http://use.i.E.your.homepage/
-// @version    0.312
+// @version    0.314
 // @description  script to improve just-dice.com's chat.  Adds colored names to easily track users, highlights, nicknames, more
 // @require     http://code.jquery.com/jquery-latest.min.js
 // @match      https://just-dice.com/*
@@ -728,22 +728,47 @@ function dumpUser ( userid ) {
 
 
 // this one does get used
+// Most of it is also reused in the watchlist settings.  Could probably add most of it to idlink
 function addUserToMembersList ( id, data, ul ) {
-        if ( data ) {
-        var name = data['name'].trunc(12);       
+    
+    if ( data ) {
+        var name = data['name'].trunc(10);     
+        var lastMsg = getTime()-data['lastMsgTime'];
         membersList[id]['added'] = true;
         
-        var li = buildli( ({ 'css': ({'padding':'0px'}), 'addClass':getGroupClassForUser( id )+" membersList_"+id }) );
-        $( li ).html( " (" );
-        $( li ).append( idLink(id,false) );
-        $( li ).append( ") &lt;"+name+"&gt " );
-        if ( data['names'] )
-                $( li ).append("*");
+        lastMsg = lastMsg/60000; // minutes
+        if ( lastMsg > 59 )
+           lastMsg = parseInt(lastMsg/60)+"h";
+        else
+           lastMsg = parseInt(lastMsg)+"m"
+        // userid - can't be changed
+        var a = idLink( id, false );
+        $( a ).css({'float':'left', 'width':'60px'});
+        $( a ).attr({ 'href':'#showUsersDetails','id':id });
+        // $( a ).click( function ( e ) { showUserDetails(userid); });
+        $( a ).addClass( getGroupClassForUser( id ) );
+        var li = buildli( ({'html':a, 'css': ({'padding':'0px'}), 'addClass':getGroupClassForUser( id )+" membersList_"+id }) );
+        
+        a = document.createElement( 'a' );
+        $( a ).html( data['name'].trunc(12) );
+        $( a ).addClass( "watchMenuLink "+getGroupClassForUser( id ) );
+        $( a ).attr({ 'href':'#editGroupName','id':id });
+
+        
+        $( li ).append( a );
+        
+        $( li ).append(  );
+        a = document.createElement( 'a' );
+        $( a ).html(  lastMsg  );
+        //console.log( id+" idle for "+( lastMsg ) );
+        $( a ).addClass( "watchMenuLink "+getGroupClassForUser( id ) );
+        $( a ).css({ 'float':'right' });
+        $( a ).attr({ 'href':'#editGroupColor', 'id':id });
+
+        $( li ).append( a );
         $( ul ).append( li );
-       // if ( DEBUG ) 
-    //      console.log('adding '+id+' to membersList');
-            
-        } else {
+       
+   } else {
         //if ( DEBUG )
                 //console.log('NOT adding '+id+' to membersList');
     }
@@ -1884,7 +1909,8 @@ function loadMembersList () {
     //}
     
     // build memberlist
-    
+
+    $( membersListList ).append( "<li><b style=\"float: left; width: 60px\">id</b><b>User</b><b style=\"float:right\">Idle</b><br></li>" );        
     $.each( membersList, function ( id, data ) {
         //console.log('checking to add '+id);
         addUserToMembersList( id, data, membersListList );
@@ -1940,8 +1966,8 @@ function readChatLog () {
 
     $( dTab ).addClass( 'active userTab' );
     $( dTab ).click( function ( e ) {
-        $( '.watchListSettings').hide();        
-        $( '.membersList').show();
+        $( '.watchListSettingsPanel').hide();        
+        $( '.membersListPanel').show();
         $( '.userTab').addClass('active');
         $( '.watchTab').removeClass('active');
     });
@@ -1951,9 +1977,9 @@ function readChatLog () {
     $( dTab ).html('WatchList');
     $( dTab ).addClass( 'watchTab' );
     $( dTab ).click( function ( e ) {
-        $( '.membersList').hide();
+        $( '.membersListPanel').hide();
         rebuildWatchListSettings( 0, false );
-        $( '.watchListSettings').show();
+        $( '.watchListSettingsPanel').show();
         $( '.userTab').removeClass('active');
         $( '.watchTab').addClass('active');
     });
@@ -1969,7 +1995,7 @@ function readChatLog () {
     // stick it all together, put to right of chat
     $( div ).append( tabs );
     $( div ).append( buildTag('div', ({ 'addClass':'membersListPanel' }) ) );
-    $( div ).append( buildTag('div', ({ 'html' : watchListSettings })  ) );
+    $( div ).append( buildTag('div', ({ 'html' : watchListSettings, 'addClass':'watchListSettingsPanel' })  ) );
     $( '.chatscroll').after( div );
     
     // this is useful for something.  What was it?
@@ -1993,10 +2019,20 @@ function readChatLog () {
 // **************************
 // these all need more work.  Has to be a better way to do this
 // this is the function we hijack to read new chat messages.  need to try get it working for add_chat
-//var oldScroll = scroll_to_bottom_of_chat();
+var oldScroll = unsafeWindow.scroll_to_bottom_of_chat;
 //console.log(oldScroll);
 var jdFuncs = ({ });
 
+unsafeWindow.scroll_to_bottom_of_chat = function () {
+    if ( !startTime ) {
+                setup();
+                readChatLog();
+    }   
+    
+    //eval("var jdfuncs_scroll_to_bottom_of_chat ="+jdFuncs['scroll_to_bottom_of_chat'] );
+   // eval("jdfuncs_scroll_to_bottom_of_chat();");
+    eval( "oldScroll()" );
+}
 // from http://sellmoe.me/bot.txt
 // perfect!  Need to use scroll_to_bottom on startup otherwise there's a delay, but this works great
 unsafeWindow.socket.on("chat", function (date, txt) { 
@@ -2278,9 +2314,16 @@ var css =
 //buttons
 //+".button-on                    { background: green }"
 // color overrides
+// green style
 +".tabs a      , .watchTabs>div , .price-down                { background: #B08484 }"
 +".tabs a.active, .watchTabs>.active, .chatModeButton, .header, .button-on, .price-up                { background: #84b085;  }"
 +"body { background-color: #899999 }"
+/*
+// baby blue style
++".panel, .stats, div.log { border: 3px solid #206BA4; background: #BBD9EE }"
++".tabs a.active { background: #BBD9EE }"
++".tabs.a { background: #F1EFE2 }"
++"body { background: #C0C0C0 }"  */
 //+".tabs a.active { margin: 5px }"
 ;    
 
